@@ -1,7 +1,6 @@
 package com.andreyg.langdetect.web;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -72,15 +71,15 @@ public class DetectController {
       if ("multi".equals(mode)) {
         List<Pair<String, Locale>> tagged = boundaryDetector.tagStringWithLanguages(text);
         detector.logQuery(text);
-        List<DetectResponse.Segment> segments = new ArrayList<>();
-        for (Pair<String, Locale> p : tagged) {
-          Locale loc = p.getSecond();
-          segments.add(
-              new DetectResponse.Segment(
-                  p.getFirst(),
-                  loc.getDisplayLanguage(),
-                  loc.toLanguageTag()));
-        }
+        List<DetectResponse.Segment> segments =
+            tagged.stream()
+                .map(
+                    p -> {
+                      Locale loc = p.getSecond();
+                      return new DetectResponse.Segment(
+                          p.getFirst(), loc.getDisplayLanguage(), loc.toLanguageTag());
+                    })
+                .toList();
         return ResponseEntity.ok(new DetectResponse(mode, null, null, segments, null));
       }
 

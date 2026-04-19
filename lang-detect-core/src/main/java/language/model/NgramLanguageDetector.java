@@ -9,8 +9,11 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -21,6 +24,8 @@ import java.util.Map.Entry;
 import java.util.Random;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
@@ -101,30 +106,19 @@ public class NgramLanguageDetector implements LanguageDetector {
 		LOCALES = new Locale[] { Locale.ENGLISH, Locale.FRENCH, Locale.ITALIAN, Locale.GERMAN, new Locale("es"),
 				new Locale("pt") };
 
-		Map<String, Locale> tempMap = new HashMap<>();
-		for (Locale locale : LOCALES) {
-			tempMap.put(locale.toString(), locale);
-		}
-		LOCALE_MAP = Collections.unmodifiableMap(tempMap);
+		LOCALE_MAP = Arrays.stream(LOCALES)
+				.collect(Collectors.toUnmodifiableMap(Locale::toString, loc -> loc));
 	}
 
 	public NgramLanguageDetector(File basePath) {
 
 		// if you change this set you need to change set of enums for features
 		// in NgramLanguageModelFeature
-		NgramLanguageModelFeature[] values = NgramLanguageModelFeature.values();
-		List<Integer> ngrams = new ArrayList<>();
-		for (NgramLanguageModelFeature feature : values) {
-			// skip non-standard features
-			if (feature.isNonStandard()) {
-				continue;
-			}
-			ngrams.add(feature.getNGramSize());
-		}
-
-		this.ngramSet = new Integer[ngrams.size()];
+		this.ngramSet = Arrays.stream(NgramLanguageModelFeature.values())
+				.filter(f -> !f.isNonStandard())
+				.map(NgramLanguageModelFeature::getNGramSize)
+				.toArray(Integer[]::new);
 		this.basePath = basePath;
-		ngrams.toArray(this.ngramSet);
 
 		// init all the models
 		this.languageNgramModels = Collections.unmodifiableMap(populateLanguageModels());
@@ -570,19 +564,12 @@ public class NgramLanguageDetector implements LanguageDetector {
 	}
 
 	private SortedSet<Entry<Locale, Double>> getValueSortedDescendingEntries(Map<Locale, Double> map) {
-		SortedSet<Entry<Locale, Double>> retVal = new TreeSet<>(new Comparator<Entry<Locale, Double>>() {
-
-			public int compare(Entry<Locale, Double> a, Entry<Locale, Double> b) {
-				// since since we want reverse order list, we multiply by -1,
-				// fall back to lexicographic order of languages
-				int valCompare = a.getValue().compareTo(b.getValue()) * -1;
-				return valCompare != 0 ? valCompare : a.getKey().getLanguage().compareTo(b.getKey().getLanguage());
-			}
-
-		});
-
+		Comparator<Entry<Locale, Double>> byScoreDesc =
+				Comparator.<Entry<Locale, Double>, Double>comparing(Entry<Locale, Double>::getValue).reversed();
+		Comparator<Entry<Locale, Double>> byLanguage =
+				Comparator.comparing(e -> e.getKey().getLanguage());
+		SortedSet<Entry<Locale, Double>> retVal = new TreeSet<>(byScoreDesc.thenComparing(byLanguage));
 		retVal.addAll(map.entrySet());
-
 		return retVal;
 	}
 
@@ -653,14 +640,12 @@ public class NgramLanguageDetector implements LanguageDetector {
 
 		NgramModel languageModel = new NgramModel(locale, nSize);
 
-		// need to read in UTF-8
-		try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(modeFile), UTF8))) {
-			String s;
-			while ((s = br.readLine()) != null) {
+		try (Stream<String> lines = Files.lines(modeFile.toPath(), StandardCharsets.UTF_8)) {
+			lines.forEach(s -> {
 				String[] parts = s.split(NgramModel.NGRAM_SEPARTOR);
-				assert parts != null && parts.length == 2;
+				assert parts.length == 2;
 				languageModel.addNormalizedNgram(parts[0], Double.valueOf(parts[1]));
-			}
+			});
 		}
 
 		return languageModel;
