@@ -1,0 +1,56 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Language Detection</title>
+    <link rel="stylesheet" type="text/css" media="screen, projection" href="general.css" />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <script type="text/javascript" src="classic.js" defer></script>
+  </head>
+  <body class="bodyTag" style="background-image: url('background.jpg')">
+    <div class="container">
+      <h1 class="title">Language Detection</h1>
+      <p class="modern-link"><a href="/">Current UI</a></p>
+      <div id="error" class="errorDiv"></div>
+      <form id="f" name="f" onsubmit="return false;">
+        <center>
+          <div>
+            <textarea
+              onkeydown="updateAndClear(this, 'error', 'inputCounter');"
+              onkeyup="updateAndClear(this, 'error', 'inputCounter');"
+              id="inputArea"
+              name="q"
+              rows="4"
+              cols="100"
+              title="Language Detection"
+            ></textarea>
+          </div>
+
+          <span class="inputCounter" id="inputCounter">0 characters</span>
+          <div>
+            <input
+              onclick="checkLength('inputArea', 'error', 'inputCounter', false);"
+              class="btn"
+              type="button"
+              value="Detect Language"
+            />
+            <input
+              onclick="checkLength('inputArea', 'error', 'inputCounter', true);"
+              class="btn"
+              type="button"
+              value="Multi-Detect Language"
+            />
+          </div>
+        </center>
+      </form>
+      <div id="classic-results"></div>
+      <br />
+      <div id="footer" class="footer">
+        <span class="desc">
+          Supported languages: en,es,fr,de,it,pt. Experimental support for multilingual strings.
+        </span>
+      </div>
+    </div>
+  </body>
+</html>

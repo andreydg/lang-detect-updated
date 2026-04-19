@@ -210,6 +210,14 @@ table.segments th {
   color: var(--muted);
 }
 
+.footer-alt {
+  margin-top: 0.75rem;
+}
+
+.footer-alt a {
+  color: var(--accent);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
