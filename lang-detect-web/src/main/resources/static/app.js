@@ -73,7 +73,7 @@ function renderResult(data) {
   resultEl.hidden = false;
   if (data.mode === "multi" && data.segments?.length) {
     resultEl.innerHTML = `
-      <h2>Segments</h2>
+      <p class="result-label">Segments</p>
       <table class="segments" role="grid">
         <thead>
           <tr><th scope="col">Language</th><th scope="col">Text</th></tr>
@@ -89,9 +89,15 @@ function renderResult(data) {
       </table>
     `;
   } else if (data.language) {
+    const tag = data.languageTag
+      ? `<p class="lang-meta">${escapeHtml(data.languageTag)}</p>`
+      : "";
     resultEl.innerHTML = `
-      <h2>Detected language</h2>
-      <div class="lang-pill">${escapeHtml(data.language)}</div>
+      <div class="lang-showcase">
+        <p class="result-label">Most likely language</p>
+        <p class="lang-name">${escapeHtml(data.language)}</p>
+        ${tag}
+      </div>
     `;
   }
 }
