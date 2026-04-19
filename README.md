@@ -5,7 +5,7 @@ Language detection with language boundary recognition.
 
 ## Build
 
-Requires **Java 17+**. The repo includes a **Maven Wrapper** (`./mvnw`), so you do not need a global Maven install.
+Requires **Java 25** (see parent `pom.xml` `java.version`). The repo includes a **Maven Wrapper** (`./mvnw`), so you do not need a global Maven install.
 
 ```bash
 ./mvnw verify
@@ -15,7 +15,7 @@ Modules:
 
 * **lang-detect-core** — detection library (`language.model`, classifiers, utilities).
 * **lang-detect-utils** — optional helpers (e.g. `NgramLanguageDetectorWithUtils`).
-* **lang-detect-web** — Spring Boot 3 app: JSON API + static UI.
+* **lang-detect-web** — Spring Boot 4 app: JSON API + static UI.
 * **lang-detect-test** — unit tests (training data under `lang-detect/war/`).
 
 Language models are still stored under `lang-detect/war/languagemodels/` and are copied into the web module at build time.
