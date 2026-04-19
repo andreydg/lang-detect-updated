@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Language detection</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <h1>Language detection</h1>
+        <p class="lede">
+          Paste text (25–100,000 characters). Choose single-language guess or multilingual
+          segmentation (experimental).
+        </p>
+      </header>
+
+      <section class="panel" aria-labelledby="input-heading">
+        <h2 id="input-heading" class="sr-only">Text input</h2>
+        <label class="label" for="input">Your text</label>
+        <textarea
+          id="input"
+          name="q"
+          rows="8"
+          spellcheck="true"
+          placeholder="Enter at least 25 characters…"
+        ></textarea>
+        <div class="toolbar">
+          <span id="counter" class="counter" aria-live="polite">0 characters</span>
+          <div class="actions">
+            <button type="button" id="btn-single" class="btn primary">Detect language</button>
+            <button type="button" id="btn-multi" class="btn">Multi-detect</button>
+          </div>
+        </div>
+        <div id="error" class="error" role="alert" hidden></div>
+      </section>
+
+      <section id="result" class="result" hidden aria-live="polite"></section>
+
+      <footer class="footer">
+        <p>
+          Supported languages: English, Spanish, French, German, Italian, Portuguese. Multilingual
+          mode is experimental.
+        </p>
+      </footer>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>
