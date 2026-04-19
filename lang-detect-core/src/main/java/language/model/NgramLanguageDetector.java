@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.jcip.annotations.GuardedBy;
@@ -74,9 +75,21 @@ public class NgramLanguageDetector implements LanguageDetector {
 	protected static final Locale[] LOCALES;
 	protected static final Map<String, Locale> LOCALE_MAP;
 
-	// format
-	protected static DecimalFormat decimalFormat;
+	// format (thread-safe for concurrent detectors / reports)
 	private static final int scale = 3;
+	private static final ThreadLocal<DecimalFormat> DECIMAL_FORMAT =
+			ThreadLocal.withInitial(
+					() -> {
+						DecimalFormat df = new DecimalFormat();
+						df.setMinimumFractionDigits(scale);
+						df.setMaximumFractionDigits(scale);
+						return df;
+					});
+
+	/** Formats doubles for logging and text reports; safe under concurrency. */
+	protected static String formatScaled(double value) {
+		return DECIMAL_FORMAT.get().format(value);
+	}
 
 	private final static Lock DF = new ReentrantLock();
 	private final static Lock LC = new ReentrantLock();
@@ -99,9 +112,6 @@ public class NgramLanguageDetector implements LanguageDetector {
 	protected final File basePath;
 
 	static {
-		decimalFormat = new DecimalFormat();
-		decimalFormat.setMinimumFractionDigits(scale);
-		decimalFormat.setMaximumFractionDigits(scale);
 		// EFIGS languages + portuguese
 		LOCALES = new Locale[] { Locale.ENGLISH, Locale.FRENCH, Locale.ITALIAN, Locale.GERMAN, new Locale("es"),
 				new Locale("pt") };
@@ -126,7 +136,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 
 	public final void logQuery(String q) {
 		if (q != null && q.length() > 0) {
-			log.info("Q:[" + q + "]");
+			log.log(Level.INFO, "Q:[{0}]", q);
 		}
 	}
 
@@ -165,7 +175,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 	}
 
 	public final Integer[] getNgramSet() {
-		return this.ngramSet;
+		return Arrays.copyOf(this.ngramSet, this.ngramSet.length);
 	}
 
 	/*
@@ -186,7 +196,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 
 		List<LanguageDocumentExample> examples = new ArrayList<>();
 		outer: for (Locale positiveLocale : LOCALES) {
-			log.info("Reading data set for: " + positiveLocale);
+			log.log(Level.INFO, "Reading data set for: {0}", positiveLocale);
 			String testSetLocation = locationBase + TRAINING_TEST_DIR + File.separator + positiveLocale.toString()
 					+ "_training";
 
@@ -211,7 +221,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 					int size = examples.size();
 
 					if (size > 0 && size % 1000 == 0) {
-						log.info("Loaded " + size + " examples");
+						log.log(Level.INFO, "Loaded {0} examples", size);
 					}
 
 					if (n > -1 && size >= n) {
@@ -259,36 +269,38 @@ public class NgramLanguageDetector implements LanguageDetector {
 		// since training takes a long time we want to train using multiple
 		// threads classifier itself can not be trained in multiple threads
 		final int numThreads = 2;
-		ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+		try (ExecutorService executor = Executors.newFixedThreadPool(numThreads)) {
+			CompletionService<LogisticRegressionClassifier<Locale, LanguageDocumentExample>> completionService =
+					new ExecutorCompletionService<>(executor);
 
-		CompletionService<LogisticRegressionClassifier<Locale, LanguageDocumentExample>> completionService = new ExecutorCompletionService<>(
-				executor);
+			int numSubmitted = 0;
+			for (Locale positiveLocale : LOCALES) {
+				log.log(Level.INFO, "Creating logistic regression classifier for: {0}", positiveLocale);
+				// just need one datum to establish dimensions
+				LanguageDocumentExample someExample = getTrainingExamples(true, 1, 0).get(0);
+				LogisticRegressionClassifier<Locale, LanguageDocumentExample> localeClassifier =
+						new LogisticRegressionClassifier<>(
+								someExample.getFeatureValues(positiveLocale).size(), positiveLocale);
 
-		int numSubmitted = 0;
-		for (Locale positiveLocale : LOCALES) {
-			log.info("Creating logistic regression classifier for: " + positiveLocale);
-			// just need one datum to establish dimensions
-			LanguageDocumentExample someExample = getTrainingExamples(true, 1, 0).get(0);
-			LogisticRegressionClassifier<Locale, LanguageDocumentExample> localeClassifier = new LogisticRegressionClassifier<>(
-					someExample.getFeatureValues(positiveLocale).size(), positiveLocale);
-
-			// submit to read or train classifier
-			completionService.submit(new LogisticClassifierTrainer(localeClassifier, positiveLocale));
-			numSubmitted++;
-			retVal.put(positiveLocale, localeClassifier);
-		}
-
-		for (int ind = 0; ind < numSubmitted; ind++) {
-			try {
-				LogisticRegressionClassifier<Locale, LanguageDocumentExample> localeClassifier = completionService
-						.take().get();
-				retVal.put(localeClassifier.getPositiveLabel(), localeClassifier);
-			} catch (Exception ex) {
-				throw new RuntimeException(ex);
+				// submit to read or train classifier
+				completionService.submit(new LogisticClassifierTrainer(localeClassifier, positiveLocale));
+				numSubmitted++;
+				retVal.put(positiveLocale, localeClassifier);
 			}
-		}
 
-		return retVal;
+			for (int ind = 0; ind < numSubmitted; ind++) {
+				try {
+					LogisticRegressionClassifier<Locale, LanguageDocumentExample> localeClassifier = completionService
+							.take()
+							.get();
+					retVal.put(localeClassifier.getPositiveLabel(), localeClassifier);
+				} catch (Exception ex) {
+					throw new RuntimeException(ex);
+				}
+			}
+
+			return retVal;
+		}
 	}
 
 	protected class LogisticClassifierTrainer implements
@@ -353,7 +365,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 		try {
 			return new DataInputStream(new FileInputStream(location));
 		} catch (FileNotFoundException e) {
-			log.info("Could not load classifier from: " + location);
+			log.log(Level.INFO, "Could not load classifier from: {0}", location);
 			return null;
 		}
 	}
@@ -376,7 +388,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 		Map<Locale, Classifier<Double, Locale, LanguageDocumentExample>> retVal = new HashMap<>();
 
 		for (Locale positiveLocale : LOCALES) {
-			log.info("Creating bagged decision tree classifier for: " + positiveLocale);
+			log.log(Level.INFO, "Creating bagged decision tree classifier for: {0}", positiveLocale);
 			BaggedDecisionTreeClassifier<Double, Locale, LanguageDocumentExample> localeBag = new BaggedDecisionTreeClassifier<>(
 					numBags, positiveLocale, NgramLanguageModelFeature.values());
 			localeBag.train(examples);
@@ -589,7 +601,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 
 		for (Map.Entry<Pair<Locale, Integer>, NgramModel> model : this.languageNgramModels.entrySet()) {
 			// skip models that have different ngram size
-			if (model.getKey().getSecond() != nGramSize) {
+			if (model.getKey().second() != nGramSize) {
 				continue;
 			}
 			// calculate cosine similarity
@@ -597,7 +609,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 			if (addNgramWeight) {
 				cosineSimilarity *= nGramSize;
 			}
-			retVal.put(model.getKey().getFirst(), cosineSimilarity);
+			retVal.put(model.getKey().first(), cosineSimilarity);
 		}
 
 		return retVal;
@@ -621,7 +633,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 						+ nGramSize;
 				File modelFile = new File(modelLocation);
 				if (!modelFile.exists()) {
-					log.severe("Could not load model from: " + modelLocation);
+					log.log(Level.SEVERE, "Could not load model from: {0}", modelLocation);
 					continue;
 				}
 				try {
@@ -644,7 +656,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 			lines.forEach(s -> {
 				String[] parts = s.split(NgramModel.NGRAM_SEPARTOR);
 				assert parts.length == 2;
-				languageModel.addNormalizedNgram(parts[0], Double.valueOf(parts[1]));
+				languageModel.addNormalizedNgram(parts[0], Double.parseDouble(parts[1]));
 			});
 		}
 

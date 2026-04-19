@@ -10,6 +10,7 @@ import net.jcip.annotations.ThreadSafe;
 
 import language.model.NgramLanguageDetector;
 import language.model.NgramLanguageDetector.ClassificationAlgorithm;
+import language.util.LanguageUtil;
 import language.util.Pair;
 
 /**
@@ -89,9 +90,9 @@ public class NestedSlidingWindowBigramBoundaryDetector extends BigramBoundaryDet
 					Pair<String, Locale> thisPair = new Pair<>(stringToAdd, this.getLanguageWithDefault(stringToAdd));
 					// if the languages are the same we can collapse it into one
 					// language
-					if (previousPair != null && previousPair.getSecond().equals(thisPair.getSecond())) {
+					if (previousPair != null && previousPair.second().equals(thisPair.second())) {
 						retVal.remove(retVal.size() - 1);
-						previousPair = new Pair<>(previousPair.getFirst() + " " + stringToAdd, previousPair.getSecond());
+						previousPair = new Pair<>(LanguageUtil.joinWithSpace(previousPair.first(), stringToAdd), previousPair.second());
 						retVal.add(previousPair);
 					} else {
 						retVal.add(thisPair);
@@ -119,9 +120,9 @@ public class NestedSlidingWindowBigramBoundaryDetector extends BigramBoundaryDet
 			Pair<String, Locale> thisPair = new Pair<>(stringToAdd, this.getLanguageWithDefault(stringToAdd));
 			// if the languages are the same we can collapse it into one
 			// language
-			if (previousPair != null && previousPair.getSecond().equals(thisPair.getSecond())) {
+			if (previousPair != null && previousPair.second().equals(thisPair.second())) {
 				retVal.remove(retVal.size() - 1);
-				previousPair = new Pair<>(previousPair.getFirst() + " " + stringToAdd, previousPair.getSecond());
+				previousPair = new Pair<>(LanguageUtil.joinWithSpace(previousPair.first(), stringToAdd), previousPair.second());
 				retVal.add(previousPair);
 			} else {
 				retVal.add(thisPair);
@@ -143,7 +144,7 @@ public class NestedSlidingWindowBigramBoundaryDetector extends BigramBoundaryDet
 			return -1;
 		}
 
-		String firstStringSplit = retVal.get(0).getFirst();
+		String firstStringSplit = retVal.get(0).first();
 		String[] parts = firstStringSplit.split(" ");
 		String targetToken = parts[parts.length - 1];
 

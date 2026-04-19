@@ -20,6 +20,7 @@ import net.jcip.annotations.ThreadSafe;
 
 import language.model.NgramLanguageDetector;
 import language.model.NgramLanguageDetector.ClassificationAlgorithm;
+import language.util.LanguageUtil;
 import language.util.Pair;
 
 /**
@@ -128,9 +129,9 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 				Pair<String, Locale> thisPair = new Pair<>(stringToAdd, this.getLanguageWithDefault(stringToAdd));
 				// if the languages are the same we can collapse it into one
 				// language
-				if (previousPair != null && previousPair.getSecond().equals(thisPair.getSecond())) {
+				if (previousPair != null && previousPair.second().equals(thisPair.second())) {
 					retVal.remove(retVal.size() - 1);
-					previousPair = new Pair<>(previousPair.getFirst() + " " + stringToAdd, previousPair.getSecond());
+					previousPair = new Pair<>(LanguageUtil.joinWithSpace(previousPair.first(), stringToAdd), previousPair.second());
 					retVal.add(previousPair);
 
 				} else {
@@ -151,9 +152,9 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 			Pair<String, Locale> thisPair = new Pair<>(stringToAdd, this.getLanguageWithDefault(stringToAdd));
 			// if the languages are the same we can collapse it into one
 			// language
-			if (previousPair.getSecond().equals(thisPair.getSecond())) {
+			if (previousPair.second().equals(thisPair.second())) {
 				retVal.remove(retVal.size() - 1);
-				retVal.add(new Pair<>(previousPair.getFirst() + " " + stringToAdd, previousPair.getSecond()));
+				retVal.add(new Pair<>(LanguageUtil.joinWithSpace(previousPair.first(), stringToAdd), previousPair.second()));
 			} else {
 				retVal.add(thisPair);
 			}
@@ -181,12 +182,7 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 	}
 
 	private void incrementBigramCounts(Map<String, Integer> map, String s) {
-		Integer currentCount = map.get(s);
-		if (currentCount == null) {
-			map.put(s, 1);
-		} else {
-			map.put(s, currentCount + 1);
-		}
+		map.merge(s, 1, Integer::sum);
 	}
 
 }

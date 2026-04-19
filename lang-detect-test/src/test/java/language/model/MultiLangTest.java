@@ -37,12 +37,12 @@ public class MultiLangTest extends TestCase {
 
 		assertEquals("Should have returned 6 phrases", 6, tags.size());
 
-		assertEquals("Didn't match language", Locale.ENGLISH, tags.get(0).getSecond());
-		assertEquals("Didn't match language", Locale.FRENCH, tags.get(1).getSecond());
-		assertEquals("Didn't match language", Locale.ITALIAN, tags.get(2).getSecond());
-		assertEquals("Didn't match language", Locale.GERMAN, tags.get(3).getSecond());
-		assertEquals("Didn't match language", new Locale("es"), tags.get(4).getSecond());
-		assertEquals("Didn't match language", new Locale("pt"), tags.get(5).getSecond());
+		assertEquals("Didn't match language", Locale.ENGLISH, tags.get(0).second());
+		assertEquals("Didn't match language", Locale.FRENCH, tags.get(1).second());
+		assertEquals("Didn't match language", Locale.ITALIAN, tags.get(2).second());
+		assertEquals("Didn't match language", Locale.GERMAN, tags.get(3).second());
+		assertEquals("Didn't match language", new Locale("es"), tags.get(4).second());
+		assertEquals("Didn't match language", new Locale("pt"), tags.get(5).second());
 
 	}
 
@@ -68,12 +68,12 @@ public class MultiLangTest extends TestCase {
 		assertEquals("Should have returned " + (6 * numRepetitions) + "phrases", 6 * numRepetitions, tags.size());
 
 		for (int ind = 0; ind < numRepetitions; ind++) {
-			assertEquals("Didn't match language", Locale.ENGLISH, tags.get(ind * 6).getSecond());
-			assertEquals("Didn't match language", Locale.FRENCH, tags.get(ind * 6 + 1).getSecond());
-			assertEquals("Didn't match language", Locale.ITALIAN, tags.get(ind * 6 + 2).getSecond());
-			assertEquals("Didn't match language", Locale.GERMAN, tags.get(ind * 6 + 3).getSecond());
-			assertEquals("Didn't match language", new Locale("es"), tags.get(ind * 6 + 4).getSecond());
-			assertEquals("Didn't match language", new Locale("pt"), tags.get(ind * 6 + 5).getSecond());
+			assertEquals("Didn't match language", Locale.ENGLISH, tags.get(ind * 6).second());
+			assertEquals("Didn't match language", Locale.FRENCH, tags.get(ind * 6 + 1).second());
+			assertEquals("Didn't match language", Locale.ITALIAN, tags.get(ind * 6 + 2).second());
+			assertEquals("Didn't match language", Locale.GERMAN, tags.get(ind * 6 + 3).second());
+			assertEquals("Didn't match language", new Locale("es"), tags.get(ind * 6 + 4).second());
+			assertEquals("Didn't match language", new Locale("pt"), tags.get(ind * 6 + 5).second());
 		}
 
 	}

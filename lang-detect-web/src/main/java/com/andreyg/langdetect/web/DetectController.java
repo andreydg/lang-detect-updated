@@ -75,9 +75,9 @@ public class DetectController {
             tagged.stream()
                 .map(
                     p -> {
-                      Locale loc = p.getSecond();
+                      Locale loc = p.second();
                       return new DetectResponse.Segment(
-                          p.getFirst(), loc.getDisplayLanguage(), loc.toLanguageTag());
+                          p.first(), loc.getDisplayLanguage(), loc.toLanguageTag());
                     })
                 .toList();
         return ResponseEntity.ok(new DetectResponse(mode, null, null, segments, null));

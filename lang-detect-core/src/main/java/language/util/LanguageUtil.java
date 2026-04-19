@@ -1,9 +1,9 @@
 package language.util;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,7 +57,7 @@ public class LanguageUtil {
 	 * 
 	 */
 	public static List<String> tokenize(String text, int minLength) {
-		List<String> retVal = new LinkedList<>();
+		List<String> retVal = new ArrayList<>();
 		StringTokenizer tokenizer = new StringTokenizer(text, delimeters);
 		while (tokenizer.hasMoreTokens()) {
 			String word = tokenizer.nextToken();
@@ -67,6 +67,19 @@ public class LanguageUtil {
 			}
 		}
 		return retVal;
+	}
+
+	/**
+	 * Joins two strings with a single space; avoids repeated string concatenation when merging segments.
+	 */
+	public static String joinWithSpace(String a, String b) {
+		if (a == null || a.isEmpty()) {
+			return b == null ? "" : b;
+		}
+		if (b == null || b.isEmpty()) {
+			return a;
+		}
+		return new StringBuilder(a.length() + b.length() + 1).append(a).append(' ').append(b).toString();
 	}
 	
 	public static Set<String> getNgramsForWordCombination(String prevWord, String nextWord, int ngramSize) {

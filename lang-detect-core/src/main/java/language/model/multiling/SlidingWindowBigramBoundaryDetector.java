@@ -13,6 +13,7 @@ import net.jcip.annotations.ThreadSafe;
 
 import language.model.NgramLanguageDetector;
 import language.model.NgramLanguageDetector.ClassificationAlgorithm;
+import language.util.LanguageUtil;
 import language.util.Pair;
 
 /**
@@ -92,7 +93,7 @@ public class SlidingWindowBigramBoundaryDetector extends BigramBoundaryDetector 
 				int smallestCount = Integer.MAX_VALUE;
 				int smallestInd = Integer.MIN_VALUE;
 				for (int ind : PREFERENCE_ORDER.get(this.windowSize)) {
-					boundaryCounts[ind] = getBigramCount(prevTokens[ind + 1] + " " + prevTokens[ind]);
+					boundaryCounts[ind] = getBigramCount(LanguageUtil.joinWithSpace(prevTokens[ind + 1], prevTokens[ind]));
 					isAllPostitive = isAllPostitive && (boundaryCounts[ind] > 0);
 					if (boundaryCounts[ind] < smallestCount) {
 						smallestCount = boundaryCounts[ind];
@@ -115,9 +116,9 @@ public class SlidingWindowBigramBoundaryDetector extends BigramBoundaryDetector 
 					Pair<String, Locale> thisPair = new Pair<>(stringToAdd, this.getLanguageWithDefault(stringToAdd));
 					// if the languages are the same we can collapse it into one
 					// language
-					if (previousPair != null && previousPair.getSecond().equals(thisPair.getSecond())) {
+					if (previousPair != null && previousPair.second().equals(thisPair.second())) {
 						retVal.remove(retVal.size() - 1);
-						previousPair = new Pair<>(previousPair.getFirst() + " " + stringToAdd, previousPair.getSecond());
+						previousPair = new Pair<>(LanguageUtil.joinWithSpace(previousPair.first(), stringToAdd), previousPair.second());
 						retVal.add(previousPair);
 					} else {
 						retVal.add(thisPair);
@@ -145,9 +146,9 @@ public class SlidingWindowBigramBoundaryDetector extends BigramBoundaryDetector 
 			Pair<String, Locale> thisPair = new Pair<>(stringToAdd, this.getLanguageWithDefault(stringToAdd));
 			// if the languages are the same we can collapse it into one
 			// language
-			if (previousPair != null && previousPair.getSecond().equals(thisPair.getSecond())) {
+			if (previousPair != null && previousPair.second().equals(thisPair.second())) {
 				retVal.remove(retVal.size() - 1);
-				previousPair = new Pair<>(previousPair.getFirst() + " " + stringToAdd, previousPair.getSecond());
+				previousPair = new Pair<>(LanguageUtil.joinWithSpace(previousPair.first(), stringToAdd), previousPair.second());
 				retVal.add(previousPair);
 			} else {
 				retVal.add(thisPair);

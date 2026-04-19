@@ -42,13 +42,18 @@ public class LanguageDetectorTester {
 	private static final String MIN_TRAIN_PARAM = "-minTrainSize";
 	private static final String MAX_TRAIN_PARAM = "-maxTrainSize";
 
-	private static DecimalFormat decimalFormat;
 	private static final int scale = 3;
+	private static final ThreadLocal<DecimalFormat> DECIMAL_FORMAT =
+			ThreadLocal.withInitial(
+					() -> {
+						DecimalFormat df = new DecimalFormat();
+						df.setMinimumFractionDigits(scale);
+						df.setMaximumFractionDigits(scale);
+						return df;
+					});
 
-	static {
-		decimalFormat = new DecimalFormat();
-		decimalFormat.setMinimumFractionDigits(scale);
-		decimalFormat.setMaximumFractionDigits(scale);
+	private static String fmt(double v) {
+		return DECIMAL_FORMAT.get().format(v);
 	}
 
 	public static void main(String[] args) throws IOException {
@@ -121,7 +126,7 @@ public class LanguageDetectorTester {
 						List<Pair<String, Locale>> retVal = boundaryDetector.tagStringWithLanguages(testMultiString);
 						System.out.println("---------- Language Tagged String----------\n");
 						for (Pair<String, Locale> pair : retVal) {
-							System.out.println(pair.getFirst() + " -> " + pair.getSecond());
+							System.out.println(pair.first() + " -> " + pair.second());
 						}
 					}
 				} while (testMultiString != null && testMultiString.length() > 0);
@@ -217,10 +222,10 @@ public class LanguageDetectorTester {
 
 				StringBuilder sb = new StringBuilder(128);
 				for (Map<Locale, Double> cosineSimilarity : listOfNGramResults) {
-					sb.append(" \t ").append(decimalFormat.format(cosineSimilarity.get(entry.getKey())));
+					sb.append(" \t ").append(fmt(cosineSimilarity.get(entry.getKey())));
 				}
 
-				System.out.println(entry.getKey() + " \t " + decimalFormat.format(entry.getValue()) + sb.toString());
+				System.out.println(entry.getKey() + " \t " + fmt(entry.getValue()) + sb.toString());
 			}
 		}
 	}

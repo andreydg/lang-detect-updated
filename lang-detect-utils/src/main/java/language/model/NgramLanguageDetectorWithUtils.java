@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import language.model.multiling.BigramBoundaryDetector;
@@ -277,7 +278,7 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 				output.append("Correct rate for ")
 						.append(locale.toString())
 						.append(": ")
-						.append(decimalFormat.format(((double) (localeTotalCount.get(locale) - errorCount))
+						.append(formatScaled(((double) (localeTotalCount.get(locale) - errorCount))
 								/ localeTotalCount.get(locale))).append(" (").append(localeTotalCount.get(locale))
 						.append(")\n");
 			}
@@ -288,7 +289,7 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 
 		if (totalCount > 0) {
 			output.append("Total rate:")
-					.append(decimalFormat.format(((double) (totalCount - totalErrorCount)) / totalCount))
+					.append(formatScaled(((double) (totalCount - totalErrorCount)) / totalCount))
 					.append(", total test set size:").append(totalCount).append("\n");
 
 		}
@@ -372,7 +373,7 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 				output.append("Base correct rate for ")
 						.append(locale.toString())
 						.append(": ")
-						.append(decimalFormat.format(((double) (localeTotalCount.get(locale) - errorCount))
+						.append(formatScaled(((double) (localeTotalCount.get(locale) - errorCount))
 								/ localeTotalCount.get(locale))).append(" (").append(localeTotalCount.get(locale))
 						.append(")\n");
 			}
@@ -380,7 +381,7 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 
 		if (totalCount > 0) {
 			output.append("Base total rate:")
-					.append(decimalFormat.format(((double) (totalCount - totalErrorCount)) / totalCount))
+					.append(formatScaled(((double) (totalCount - totalErrorCount)) / totalCount))
 					.append(", total test set size:").append(totalCount).append("\n");
 
 		}
@@ -427,13 +428,13 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 
 		StringBuilder runOutput = new StringBuilder();
 		for (Pair<String, Locale> pair : languageTags) {
-			runOutput.append(pair.getFirst()).append(MULTI_LING_SEPARATOR);
-			runOutput.append(pair.getSecond()).append("\n");
-			Locale trueLocale = allLanguageStrings.get(pair.getFirst());
+			runOutput.append(pair.first()).append(MULTI_LING_SEPARATOR);
+			runOutput.append(pair.second()).append("\n");
+			Locale trueLocale = allLanguageStrings.get(pair.first());
 			if (trueLocale == null) {
 				incorrectlyFound++;
 			} else {
-				Locale taggedLocale = pair.getSecond();
+				Locale taggedLocale = pair.second();
 				if (taggedLocale == null || !taggedLocale.equals(trueLocale)) {
 					incorrectlyClassified++;
 				} else {
@@ -462,10 +463,10 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 		int totalNumberOfPhrase = allLanguageStrings.size() + numDuplicates;
 		output.append("Actual number of phrases:").append(totalNumberOfPhrase).append("\n");
 		double recall = ((double) correctPhrases) / totalNumberOfPhrase;
-		output.append("Correct rate(recall):").append(decimalFormat.format(recall)).append("\n");
+		output.append("Correct rate(recall):").append(formatScaled(recall)).append("\n");
 		double precision = ((double) correctPhrases) / languageTags.size();
-		output.append("Correct found rate(precision):").append(decimalFormat.format(precision)).append("\n");
-		output.append("F1:").append(decimalFormat.format(2 * precision * recall / (precision + recall))).append("\n");
+		output.append("Correct found rate(precision):").append(formatScaled(precision)).append("\n");
+		output.append("F1:").append(formatScaled(2 * precision * recall / (precision + recall))).append("\n");
 
 		return output.toString();
 	}
@@ -480,7 +481,7 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 		try {
 			return new DataOutputStream(new FileOutputStream(location));
 		} catch (FileNotFoundException e) {
-			log.severe("Could not write classifier to: " + location);
+			log.log(Level.SEVERE, "Could not write classifier to: {0}", location);
 			return null;
 		}
 	}

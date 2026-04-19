@@ -21,8 +21,15 @@ public class NgramModel {
 	private static final int BASE_TOP_NGRAMS = 50;
 	private final int actualTopNGrams;
 
-	private static DecimalFormat decimalFormat;
 	private static final int scale = 3;
+	private static final ThreadLocal<DecimalFormat> DECIMAL_FORMAT =
+			ThreadLocal.withInitial(
+					() -> {
+						DecimalFormat df = new DecimalFormat();
+						df.setMinimumFractionDigits(scale);
+						df.setMaximumFractionDigits(scale);
+						return df;
+					});
 	private Double lengthNorm;
 
 	private Map<String, Double> rawNgramFrequency;
@@ -33,12 +40,6 @@ public class NgramModel {
 	public final Map<String, Set<String>> nGramCache;
 
 	private final int ngramSize;
-
-	static {
-		decimalFormat = new DecimalFormat();
-		decimalFormat.setMinimumFractionDigits(scale);
-		decimalFormat.setMaximumFractionDigits(scale);
-	}
 
 	public NgramModel(int ngramSize) {
 		this(null, ngramSize);
@@ -94,18 +95,13 @@ public class NgramModel {
 	 * @param value
 	 *            - allows to adjust value for long words
 	 */
-	public void addNgram(String nGram, Double value) {
+	public void addNgram(String nGram, double value) {
 		if (this.sortedNgrams != null && this.lengthNorm != null) {
 			throw new RuntimeException(
 					"Can't add ngrams after lengthNorm and sortedNgrams have been formed in getngramsSortedByFrequency");
 		}
 
-		Double current = this.rawNgramFrequency.get(nGram);
-		if (current == null) {
-			this.rawNgramFrequency.put(nGram, value);
-		} else {
-			this.rawNgramFrequency.put(nGram, current + value);
-		}
+		this.rawNgramFrequency.merge(nGram, value, Double::sum);
 	}
 
 	/**
@@ -117,7 +113,7 @@ public class NgramModel {
 	 * @param value
 	 *            - normalized frequency value
 	 */
-	public void addNormalizedNgram(String nGram, Double value) {
+	public void addNormalizedNgram(String nGram, double value) {
 		if (this.lengthNorm == null || this.lengthNorm != 1.0 || this.languageDefinition == null) {
 			throw new RuntimeException("Can't add noramlized ngrams if this is not language model");
 		}
@@ -185,7 +181,7 @@ public class NgramModel {
 		int counter = 0;
 		for (NGram ngram : getNgramsSortedByFrequency().keySet()) {
 			sb.append(ngram.nGramValue).append(NGRAM_SEPARTOR).append(
-					decimalFormat.format(ngram.frequency / lengthNormThis));
+					DECIMAL_FORMAT.get().format(ngram.frequency / lengthNormThis));
 			sb.append("\n");
 			counter++;
 			if (counter > this.actualTopNGrams) {
