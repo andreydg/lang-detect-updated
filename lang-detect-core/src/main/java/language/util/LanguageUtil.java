@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.stream.Collectors;
 
 /**
  * Set of utils for language algorithms
@@ -70,17 +71,12 @@ public class LanguageUtil {
 	
 	public static Set<String> getNgramsForWordCombination(String prevWord, String nextWord, int ngramSize) {
 		Set<String> initialNgrams = getNgrams(prevWord + WORD_BOUNDARY_CHAR + nextWord, ngramSize, false);
-		Set<String> retVal = new HashSet<>(initialNgrams.size());
-		for (String ngram : initialNgrams) {
-			// should containt word boundary character but not at first or last position
-			// otherwise we are not capturing elements from both words
-			if (ngram.contains(WORD_BOUNDARY_CHAR)
-					&& !WORD_BOUNDARY_CHAR.equals(String.valueOf(ngram.charAt(ngramSize - 1)))
-					&& !WORD_BOUNDARY_CHAR.equals(String.valueOf(ngram.charAt(0)))) {
-				retVal.add(ngram);
-			}
-		}
-		return retVal;
+		return initialNgrams.stream()
+				.filter(
+						ngram -> ngram.contains(WORD_BOUNDARY_CHAR)
+								&& !WORD_BOUNDARY_CHAR.equals(String.valueOf(ngram.charAt(ngramSize - 1)))
+								&& !WORD_BOUNDARY_CHAR.equals(String.valueOf(ngram.charAt(0))))
+				.collect(Collectors.toCollection(() -> new HashSet<>(initialNgrams.size())));
 	}
 
 	/**
