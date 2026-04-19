@@ -9,8 +9,10 @@ public class ClassicUiWebConfig implements WebMvcConfigurer {
 
   @Override
   public void addViewControllers(ViewControllerRegistry registry) {
-    // Spring Boot only serves index.html as a welcome page for "/"; subpaths like "/classic/"
-    // do not resolve to classic/index.html, so redirect explicitly.
+    // Ensure "/" serves the SPA: welcome-page handling for "/" is unreliable in some setups
+    // (e.g. Spring Boot 4 behind Render), while "/index.html" is always served from static/.
+    registry.addViewController("/").setViewName("forward:/index.html");
+    // Subpaths like "/classic/" do not resolve to classic/index.html; redirect explicitly.
     registry.addRedirectViewController("/classic", "/classic/index.html");
     registry.addRedirectViewController("/classic/", "/classic/index.html");
   }
