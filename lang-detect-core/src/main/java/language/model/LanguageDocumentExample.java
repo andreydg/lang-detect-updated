@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -31,7 +32,7 @@ public class LanguageDocumentExample implements DecisionTreeExample<Double, Loca
 	}
 
 	public void addFeatureValue(NgramLanguageModelFeature feature, Map<Locale, Double> value) {
-		assert feature != null;
+		Objects.requireNonNull(feature, "feature must not be null");
 		this.featureValues.put(feature, value);
 	}
 

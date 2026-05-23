@@ -3,14 +3,8 @@ package language.model;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -19,8 +13,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import language.model.multiling.BigramBoundaryDetector;
 import language.model.multiling.LanguageBoundaryDetector;
@@ -42,7 +37,7 @@ import language.util.Pair;
  */
 public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 	
-	private static final Logger log = Logger.getLogger(NgramLanguageDetectorWithUtils.class.getName());
+	private static final Logger log = LoggerFactory.getLogger(NgramLanguageDetectorWithUtils.class);
 
 	private static final Random rnd = new Random(1);
 
@@ -57,9 +52,9 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 	private final int minTrainingSampleLength;
 	private final int maxTrainingSampleLength;
 
-	public NgramLanguageDetectorWithUtils(File basePath, int minTrainingSampleLength, int maxTrainingSampleLength) {
+	public NgramLanguageDetectorWithUtils(Path basePath, int minTrainingSampleLength, int maxTrainingSampleLength) {
 		super(basePath);
-		this.locationBase = basePath.toPath().resolve(BASE_MODEL_DIR);
+		this.locationBase = basePath.resolve(BASE_MODEL_DIR);
 		this.minTrainingSampleLength = minTrainingSampleLength;
 		this.maxTrainingSampleLength = maxTrainingSampleLength;
 	}
@@ -86,7 +81,7 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 				}
 
 				NgramModel languageModel = new NgramModel(nGramSize);
-				try (BufferedReader br = new BufferedReader(new FileReader(fileWithText.toFile()))) {
+				try (BufferedReader br = Files.newBufferedReader(fileWithText, StandardCharsets.UTF_8)) {
 					String s;
 					while ((s = br.readLine()) != null) {
 						languageModel = this.getNgramModelForText(s, languageModel, false);
@@ -100,7 +95,7 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 
 				Path modelLocation = modelLocationDirFile.resolve(locale.toString() + "_" + nGramSize);
 
-				try (BufferedWriter out = new BufferedWriter(new FileWriter(modelLocation.toFile()))) {
+				try (BufferedWriter out = Files.newBufferedWriter(modelLocation, StandardCharsets.UTF_8)) {
 					out.write(ngramModel);
 				}
 			}
@@ -113,7 +108,7 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 
 		StringBuilder output = new StringBuilder(512);
 
-		Path locationBase = basePath.toPath().resolve(BASE_MODEL_DIR);
+		Path locationBase = basePath.resolve(BASE_MODEL_DIR);
 		for (Locale locale : LOCALES) {
 
 			output.append("\n\n******** Creating training and test sets for ").append(locale.toString());
@@ -129,7 +124,7 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 
 			List<String> trainingSet = new ArrayList<>();
 			List<String> testSet = new ArrayList<>();
-			try (BufferedReader br = new BufferedReader(new FileReader(fileWithText.toFile()))) {
+			try (BufferedReader br = Files.newBufferedReader(fileWithText, StandardCharsets.UTF_8)) {
 
 				String s;
 				StringBuilder sb = new StringBuilder(128);
@@ -160,15 +155,15 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 			// write test set and training set
 			Path trainingTestSetPath = checkAndCreateDir(locationBase.resolve(TRAINING_TEST_DIR));
 
-			try (BufferedWriter outForTraining = new BufferedWriter(new FileWriter(trainingTestSetPath.resolve(
-					locale.toString() + "_training").toFile()))) {
+			try (BufferedWriter outForTraining = Files.newBufferedWriter(
+					trainingTestSetPath.resolve(locale.toString() + "_training"), StandardCharsets.UTF_8)) {
 				for (String training : trainingSet) {
 					outForTraining.write(training + "\n");
 				}
 			}
 
-			try (BufferedWriter outForTesting = new BufferedWriter(new FileWriter(trainingTestSetPath.resolve(
-					locale.toString() + "_test").toFile()))) {
+			try (BufferedWriter outForTesting = Files.newBufferedWriter(
+					trainingTestSetPath.resolve(locale.toString() + "_test"), StandardCharsets.UTF_8)) {
 				for (String test : testSet) {
 					outForTesting.write(test + "\n");
 				}
@@ -195,7 +190,7 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 				continue;
 			}
 
-			sourceFiles[ind] = new BufferedReader(new FileReader(fileWithText.toFile()));
+			sourceFiles[ind] = Files.newBufferedReader(fileWithText, StandardCharsets.UTF_8);
 		}
 
 		output.append("\n\n******** Creating multilingual test set from existing test sets ********\n");
@@ -203,8 +198,8 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 		// write test set and training set
 		Path trainingTestSetLocation = checkAndCreateDir(locationBase.resolve(MULTI_LANG_TEST_DIR));
 
-		try (BufferedWriter outForTest = new BufferedWriter(new FileWriter(trainingTestSetLocation.resolve("testSet")
-				.toFile()));) {
+		try (BufferedWriter outForTest = Files.newBufferedWriter(
+				trainingTestSetLocation.resolve("testSet"), StandardCharsets.UTF_8)) {
 			// total of MAX_MULTILNGUAL_PHRASES phrase in different languages
 			// their length will be identical to length of phrases generated in
 			// original test set files
@@ -257,8 +252,7 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 
 			String s;
 
-			try (BufferedReader br = new BufferedReader(new InputStreamReader(
-					new FileInputStream(testSetPath.toFile()), UTF8));) {
+			try (BufferedReader br = Files.newBufferedReader(testSetPath, StandardCharsets.UTF_8)) {
 				while ((s = br.readLine()) != null) {
 					incrementLocaleCounts(locale, localeTotalCount);
 					Locale detectedLanguage = getMostLikelyLanguage(s, algorithmToUse);
@@ -319,12 +313,14 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 		StringBuilder entireDocument = new StringBuilder();
 		int numDuplicates = 0;
 		StringBuilder actualLanguageTags = new StringBuilder();
-		try (BufferedReader br = new BufferedReader(new FileReader(fileWithText.toFile()))) {
+		try (BufferedReader br = Files.newBufferedReader(fileWithText, StandardCharsets.UTF_8)) {
 			Locale prevLocale = null;
 			StringBuilder prevString = new StringBuilder();
 			while ((s = br.readLine()) != null) {
 				String parts[] = s.split(MULTI_LING_SEPARATOR);
-				assert (parts.length == 2);
+				if (parts.length != 2) {
+					throw new IllegalStateException("Malformed multilingual test line (expected 2 parts): " + s);
+				}
 				String testString = parts[0].trim();
 				Locale locale = LOCALE_MAP.get(parts[1]);
 				incrementLocaleCounts(locale, localeTotalCount);
@@ -445,13 +441,13 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 
 		// write the results of the run for analysis
 		Path multilingOutput = locationBase.resolve(MULTI_LANG_TEST_DIR).resolve("runOutput");
-		try (BufferedWriter out = new BufferedWriter(new FileWriter(multilingOutput.toFile()));) {
+		try (BufferedWriter out = Files.newBufferedWriter(multilingOutput, StandardCharsets.UTF_8)) {
 			out.write(runOutput.toString());
 		}
 
 		// write the results of the run for analysis
 		Path multilingExactSet = locationBase.resolve(MULTI_LANG_TEST_DIR).resolve("exactSetOutput");
-		try (BufferedWriter out = new BufferedWriter(new FileWriter(multilingExactSet.toFile()));) {
+		try (BufferedWriter out = Files.newBufferedWriter(multilingExactSet, StandardCharsets.UTF_8)) {
 			out.write(actualLanguageTags.toString());
 		}
 
@@ -477,11 +473,12 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 	@Override
 	protected final DataOutputStream getLogisitcClassifierDataOutput(Locale locale) {
 
-		String location = getLogisticClassifierFileCache(locale);
+		Path location = getLogisticClassifierPath(locale);
 		try {
-			return new DataOutputStream(new FileOutputStream(location));
-		} catch (FileNotFoundException e) {
-			log.log(Level.SEVERE, "Could not write classifier to: {0}", location);
+			Files.createDirectories(location.getParent());
+			return new DataOutputStream(Files.newOutputStream(location));
+		} catch (IOException e) {
+			log.error("Could not write classifier to: {}", location);
 			return null;
 		}
 	}

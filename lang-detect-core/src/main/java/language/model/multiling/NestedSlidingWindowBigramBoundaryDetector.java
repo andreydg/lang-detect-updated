@@ -27,7 +27,10 @@ public class NestedSlidingWindowBigramBoundaryDetector extends BigramBoundaryDet
 	public NestedSlidingWindowBigramBoundaryDetector(ClassificationAlgorithm algorithmToUse,
 			NgramLanguageDetector detector, int windowSize) throws IOException {
 		super(algorithmToUse, detector);
-		assert windowSize > NESTED_WINDOW : "Window size needs to be larger than nested window";
+		if (windowSize <= NESTED_WINDOW) {
+			throw new IllegalArgumentException(
+					"Window size must be larger than nested window (" + NESTED_WINDOW + "): " + windowSize);
+		}
 		this.windowSize = windowSize;
 	}
 

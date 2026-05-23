@@ -70,7 +70,9 @@ public abstract class DecisionTreeEntity<T extends Comparable<T>, K> {
 	 *         highest range so we just need to have it higher lowerBound
 	 */
 	public static <T> boolean isValueWithinRange(T value, Comparable<T> lowerBound, Comparable<T> upperBound) {
-		assert lowerBound != null || upperBound != null;
+		if (lowerBound == null && upperBound == null) {
+			throw new IllegalArgumentException("lowerBound and upperBound cannot both be null");
+		}
 
 		if (lowerBound == null) {
 			return upperBound.compareTo(value) > 0;

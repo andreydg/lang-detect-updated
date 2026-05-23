@@ -6,7 +6,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import language.classifier.tree.DecisionNode;
 import language.classifier.tree.DecisionTreeExample;
@@ -21,7 +22,7 @@ public class BaggedDecisionTreeClassifier<T extends Comparable<T>, K, Z extends 
 		Classifier<T, K, Z> {
 	
 	private static final Random rnd = new Random(1);
-	private static final Logger log = Logger.getLogger(BaggedDecisionTreeClassifier.class.getName());
+	private static final Logger log = LoggerFactory.getLogger(BaggedDecisionTreeClassifier.class);
 
 	private final List<DecisionNode<T, K>> decisionTrees;
 	private final K positiveLabel;
@@ -50,7 +51,7 @@ public class BaggedDecisionTreeClassifier<T extends Comparable<T>, K, Z extends 
 			// add tree to list of bagged trees
 			this.decisionTrees.add(root);
 
-			log.info("Generated tree for " + positiveLabel + ", bag " + (ind+1));
+			log.info("Generated tree for {}, bag {}", positiveLabel, ind + 1);
 		}
 
 	}

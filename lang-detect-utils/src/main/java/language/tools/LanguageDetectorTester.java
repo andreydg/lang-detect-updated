@@ -1,9 +1,10 @@
 package language.tools;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -93,8 +94,11 @@ public class LanguageDetectorTester {
 			basePath = "";
 		}
 
-		File baseFilePath = new File(basePath);
-		assert (baseFilePath.exists());
+		Path baseFilePath = Path.of(basePath);
+		if (!Files.exists(baseFilePath)) {
+			System.out.println("Error: data path does not exist: " + baseFilePath);
+			System.exit(1);
+		}
 
 		NgramLanguageDetectorWithUtils detector = new NgramLanguageDetectorWithUtils(baseFilePath,
 				minTrainingSampleSize, maxTrainingSampleSize);

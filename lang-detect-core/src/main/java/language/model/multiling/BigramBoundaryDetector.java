@@ -1,10 +1,10 @@
 package language.model.multiling;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -64,23 +64,21 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 
 		Map<String, Integer> retVal = new HashMap<>();
 
-		String locationBase = this.detector.getBasePath().getAbsolutePath() + File.separator
-				+ NgramLanguageDetector.BASE_MODEL_DIR + File.separator;
+		Path trainingDir = detector.getBasePath()
+				.resolve(NgramLanguageDetector.BASE_MODEL_DIR)
+				.resolve(NgramLanguageDetector.TRAINING_TEST_DIR);
 		for (Locale locale : NgramLanguageDetector.getLocales()) {
 
 			// _training
-			String testSetLocation = locationBase + NgramLanguageDetector.TRAINING_TEST_DIR + File.separator
-					+ locale.toString() + "_training";
+			Path file = trainingDir.resolve(locale.toString() + "_training");
 
 			// need to read in UTF-8
-			File file = new File(testSetLocation);
-			if (!file.exists()) {
+			if (!Files.exists(file)) {
 				continue;
 			}
 
 			String s;
-			try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file),
-					NgramLanguageDetector.UTF8))) {
+			try (BufferedReader br = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
 				while ((s = br.readLine()) != null) {
 					StringTokenizer st = new StringTokenizer(s);
 					String prevToken = null;

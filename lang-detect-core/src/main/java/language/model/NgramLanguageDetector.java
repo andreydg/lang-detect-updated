@@ -4,13 +4,10 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,10 +30,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import net.jcip.annotations.GuardedBy;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import language.classifier.BaggedDecisionTreeClassifier;
 import language.classifier.Classifier;
@@ -54,7 +51,7 @@ import language.util.Pair;
  */
 public class NgramLanguageDetector implements LanguageDetector {
 
-	private static final Logger log = Logger.getLogger(NgramLanguageDetector.class.getName());
+	private static final Logger log = LoggerFactory.getLogger(NgramLanguageDetector.class);
 	private static final Random rnd = new Random(1);
 
 	// path constants
@@ -62,8 +59,6 @@ public class NgramLanguageDetector implements LanguageDetector {
 	public static final String NGRAM_MODEL_DIR = "ngramModel";
 	public static final String TRAINING_TEST_DIR = "trainingAndTestSet";
 	public static final String LOGISTIC_CLASSFIER_DIR = "logisticClassifier";
-
-	public static final String UTF8 = "UTF-8";
 
 	// classifier constants
 	private static final Double MIN_SCORE = 0.05;
@@ -109,7 +104,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 	private final Map<Pair<Locale, Integer>, NgramModel> languageNgramModels;
 	protected final Integer[] ngramSet;
 
-	protected final File basePath;
+	protected final Path basePath;
 
 	static {
 		// EFIGS languages + portuguese
@@ -120,7 +115,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 				.collect(Collectors.toUnmodifiableMap(Locale::toString, loc -> loc));
 	}
 
-	public NgramLanguageDetector(File basePath) {
+	public NgramLanguageDetector(Path basePath) {
 
 		// if you change this set you need to change set of enums for features
 		// in NgramLanguageModelFeature
@@ -136,7 +131,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 
 	public final void logQuery(String q) {
 		if (q != null && q.length() > 0) {
-			log.log(Level.INFO, "Q:[{0}]", q);
+			log.info("Q:[{}]", q);
 		}
 	}
 
@@ -192,22 +187,20 @@ public class NgramLanguageDetector implements LanguageDetector {
 	protected final List<LanguageDocumentExample> getTrainingExamples(boolean addLinearWeightFeature, int n, float ratio)
 			throws IOException {
 
-		String locationBase = basePath.getAbsolutePath() + File.separator + BASE_MODEL_DIR + File.separator;
+		Path trainingDir = basePath.resolve(BASE_MODEL_DIR).resolve(TRAINING_TEST_DIR);
 
 		List<LanguageDocumentExample> examples = new ArrayList<>();
 		outer: for (Locale positiveLocale : LOCALES) {
-			log.log(Level.INFO, "Reading data set for: {0}", positiveLocale);
-			String testSetLocation = locationBase + TRAINING_TEST_DIR + File.separator + positiveLocale.toString()
-					+ "_training";
+			log.info("Reading data set for: {}", positiveLocale);
+			Path file = trainingDir.resolve(positiveLocale.toString() + "_training");
 
-			File file = new File(testSetLocation);
-			if (!file.exists()) {
+			if (!Files.exists(file)) {
 				continue;
 			}
 
 			// need to read in UTF-8
 			String s;
-			try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file), UTF8))) {
+			try (BufferedReader br = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
 				while ((s = br.readLine()) != null) {
 
 					// sample if necessary
@@ -221,7 +214,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 					int size = examples.size();
 
 					if (size > 0 && size % 1000 == 0) {
-						log.log(Level.INFO, "Loaded {0} examples", size);
+						log.info("Loaded {} examples", size);
 					}
 
 					if (n > -1 && size >= n) {
@@ -275,7 +268,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 
 			int numSubmitted = 0;
 			for (Locale positiveLocale : LOCALES) {
-				log.log(Level.INFO, "Creating logistic regression classifier for: {0}", positiveLocale);
+				log.info("Creating logistic regression classifier for: {}", positiveLocale);
 				// just need one datum to establish dimensions
 				LanguageDocumentExample someExample = getTrainingExamples(true, 1, 0).get(0);
 				LogisticRegressionClassifier<Locale, LanguageDocumentExample> localeClassifier =
@@ -318,7 +311,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 
 		public LogisticRegressionClassifier<Locale, LanguageDocumentExample> call() throws IOException {
 
-			try (DataInputStream input = getLogisitcClassifierDataInput(positiveLocale)) {
+			try (DataInputStream input = getLogisticClassifierDataInput(positiveLocale)) {
 				// try reading from cache
 				if (input == null || !localeClassifier.read(input)) {
 					localeClassifier.train(getCachedTrainingDataSet(true));
@@ -347,25 +340,17 @@ public class NgramLanguageDetector implements LanguageDetector {
 		return DATASET;
 	}
 
-	protected String getLogisticClassifierFileCache(Locale locale) {
-		String configDir = basePath.getAbsolutePath();
-		String locationBase = configDir + File.separator + BASE_MODEL_DIR + File.separator;
-		String classifierDir = locationBase + LOGISTIC_CLASSFIER_DIR + File.separator;
-		File classifierDirFile = new File(classifierDir);
-		if (!classifierDirFile.exists()) {
-			classifierDirFile.mkdir();
-		}
-
-		return classifierDir + locale.toString();
+	protected Path getLogisticClassifierPath(Locale locale) {
+		return basePath.resolve(BASE_MODEL_DIR).resolve(LOGISTIC_CLASSFIER_DIR).resolve(locale.toString());
 	}
 
-	protected DataInputStream getLogisitcClassifierDataInput(Locale locale) {
+	protected DataInputStream getLogisticClassifierDataInput(Locale locale) {
 
-		String location = getLogisticClassifierFileCache(locale);
+		Path location = getLogisticClassifierPath(locale);
 		try {
-			return new DataInputStream(new FileInputStream(location));
-		} catch (FileNotFoundException e) {
-			log.log(Level.INFO, "Could not load classifier from: {0}", location);
+			return new DataInputStream(Files.newInputStream(location));
+		} catch (IOException e) {
+			log.info("Could not load classifier from: {}", location);
 			return null;
 		}
 	}
@@ -388,7 +373,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 		Map<Locale, Classifier<Double, Locale, LanguageDocumentExample>> retVal = new HashMap<>();
 
 		for (Locale positiveLocale : LOCALES) {
-			log.log(Level.INFO, "Creating bagged decision tree classifier for: {0}", positiveLocale);
+			log.info("Creating bagged decision tree classifier for: {}", positiveLocale);
 			BaggedDecisionTreeClassifier<Double, Locale, LanguageDocumentExample> localeBag = new BaggedDecisionTreeClassifier<>(
 					numBags, positiveLocale, NgramLanguageModelFeature.values());
 			localeBag.train(examples);
@@ -619,9 +604,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 
 		Map<Pair<Locale, Integer>, NgramModel> retVal = new HashMap<>(32);
 
-		String configDir = this.basePath.getAbsolutePath();
-
-		String locationBase = configDir + File.separator + BASE_MODEL_DIR + File.separator;
+		Path modelBase = basePath.resolve(BASE_MODEL_DIR).resolve(NGRAM_MODEL_DIR);
 
 		for (Integer nGramSize : ngramSet) {
 
@@ -629,15 +612,13 @@ public class NgramLanguageDetector implements LanguageDetector {
 			for (Locale locale : LOCALES) {
 				Pair<Locale, Integer> key = new Pair<>(locale, nGramSize);
 
-				String modelLocation = locationBase + NGRAM_MODEL_DIR + File.separator + locale.toString() + "_"
-						+ nGramSize;
-				File modelFile = new File(modelLocation);
-				if (!modelFile.exists()) {
-					log.log(Level.SEVERE, "Could not load model from: {0}", modelLocation);
+				Path modelPath = modelBase.resolve(locale.toString() + "_" + nGramSize);
+				if (!Files.exists(modelPath)) {
+					log.error("Could not load model from: {}", modelPath);
 					continue;
 				}
 				try {
-					retVal.put(key, readModel(modelFile, locale, nGramSize));
+					retVal.put(key, readModel(modelPath, locale, nGramSize));
 				} catch (IOException e) {
 					throw new RuntimeException("Failed to read model with key: " + key, e);
 				}
@@ -648,14 +629,16 @@ public class NgramLanguageDetector implements LanguageDetector {
 		return retVal;
 	}
 
-	private NgramModel readModel(File modeFile, Locale locale, int nSize) throws IOException {
+	private NgramModel readModel(Path modelPath, Locale locale, int nSize) throws IOException {
 
 		NgramModel languageModel = new NgramModel(locale, nSize);
 
-		try (Stream<String> lines = Files.lines(modeFile.toPath(), StandardCharsets.UTF_8)) {
+		try (Stream<String> lines = Files.lines(modelPath, StandardCharsets.UTF_8)) {
 			lines.forEach(s -> {
 				String[] parts = s.split(NgramModel.NGRAM_SEPARTOR);
-				assert parts.length == 2;
+				if (parts.length != 2) {
+					throw new IllegalStateException("Malformed model line (expected 2 parts): " + s);
+				}
 				languageModel.addNormalizedNgram(parts[0], Double.parseDouble(parts[1]));
 			});
 		}
@@ -667,7 +650,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 		return LOCALES;
 	}
 
-	public final File getBasePath() {
+	public final Path getBasePath() {
 		return basePath;
 	}
 

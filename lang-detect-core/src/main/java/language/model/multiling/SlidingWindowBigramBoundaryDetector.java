@@ -47,7 +47,9 @@ public class SlidingWindowBigramBoundaryDetector extends BigramBoundaryDetector 
 			NgramLanguageDetector detector, int windowSize) throws IOException {
 		super(algorithmToUse, detector);
 		int[] orderPreference = PREFERENCE_ORDER.get(windowSize);
-		assert orderPreference != null : "Unsupported window size";
+		if (orderPreference == null) {
+			throw new IllegalArgumentException("Unsupported window size: " + windowSize);
+		}
 		this.windowSize = windowSize;
 	}
 

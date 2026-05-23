@@ -1,7 +1,7 @@
 package com.andreyg.langdetect;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,7 +18,7 @@ public class LangDetectConfiguration {
   @Bean
   public NgramLanguageDetector ngramLanguageDetector(ResourcePatternResolver resourceResolver)
       throws IOException {
-    File base = LanguageModelsPaths.resolve(resourceResolver);
+    Path base = LanguageModelsPaths.resolve(resourceResolver);
     return new NgramLanguageDetector(base);
   }
 

@@ -1,6 +1,5 @@
 package com.andreyg.langdetect;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -21,22 +20,22 @@ public final class LanguageModelsPaths {
 
   private LanguageModelsPaths() {}
 
-  public static File resolve(ResourcePatternResolver resourceResolver) throws IOException {
+  public static Path resolve(ResourcePatternResolver resourceResolver) throws IOException {
     String env = System.getenv("LANG_DETECT_BASE_PATH");
     if (env != null && !env.isBlank()) {
-      File base = new File(env.trim()).getCanonicalFile();
+      Path base = Path.of(env.trim()).toAbsolutePath().normalize();
       requireModels(base);
       return base;
     }
 
-    File cwd = new File(".").getCanonicalFile();
-    if (new File(cwd, "languagemodels").isDirectory()) {
+    Path cwd = Path.of("").toAbsolutePath();
+    if (Files.isDirectory(cwd.resolve("languagemodels"))) {
       return cwd;
     }
 
-    File fromTarget = new File(cwd, "target/classes/languagemodels");
-    if (fromTarget.isDirectory()) {
-      return new File(cwd, "target/classes").getCanonicalFile();
+    Path fromTarget = cwd.resolve("target/classes/languagemodels");
+    if (Files.isDirectory(fromTarget)) {
+      return cwd.resolve("target/classes").toAbsolutePath().normalize();
     }
 
     Resource root = resourceResolver.getResource("classpath:/languagemodels/");
@@ -47,10 +46,10 @@ public final class LanguageModelsPaths {
     }
 
     try {
-      File f = root.getFile();
-      File parent = f.getParentFile();
-      if (parent != null && new File(parent, "languagemodels").isDirectory()) {
-        return parent.getCanonicalFile();
+      Path f = root.getFile().toPath();
+      Path parent = f.getParent();
+      if (parent != null && Files.isDirectory(parent.resolve("languagemodels"))) {
+        return parent.toAbsolutePath().normalize();
       }
     } catch (Exception ignored) {
       // unpack from classpath (e.g. executable jar)
@@ -59,15 +58,14 @@ public final class LanguageModelsPaths {
     return extractFromClasspath(resourceResolver);
   }
 
-  private static void requireModels(File base) throws IOException {
-    File lm = new File(base.getCanonicalFile(), "languagemodels");
-    if (!lm.isDirectory()) {
+  private static void requireModels(Path base) {
+    if (!Files.isDirectory(base.resolve("languagemodels"))) {
       throw new IllegalArgumentException(
           "LANG_DETECT_BASE_PATH must point to a directory that contains languagemodels/: " + base);
     }
   }
 
-  private static File extractFromClasspath(ResourcePatternResolver resolver) throws IOException {
+  private static Path extractFromClasspath(ResourcePatternResolver resolver) throws IOException {
     Resource[] resources = resolver.getResources("classpath:/languagemodels/**/*");
     if (resources.length == 0) {
       throw new IllegalStateException("No files under classpath:/languagemodels/ — check build resources.");
@@ -99,6 +97,6 @@ public final class LanguageModelsPaths {
         Files.copy(in, out, StandardCopyOption.REPLACE_EXISTING);
       }
     }
-    return tmp.toFile();
+    return tmp;
   }
 }

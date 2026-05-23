@@ -139,7 +139,9 @@ public class NgramModel {
 	}
 
 	public double calculateCosineSimilarity(NgramModel anotherModel) {
-		assert this.languageDefinition != null || anotherModel.languageDefinition != null : "one of the ngram models need to be language model";
+		if (this.languageDefinition == null && anotherModel.languageDefinition == null) {
+			throw new IllegalArgumentException("One of the ngram models must be a language model");
+		}
 
 		NgramModel languageModel = this.languageDefinition != null ? this : anotherModel;
 
