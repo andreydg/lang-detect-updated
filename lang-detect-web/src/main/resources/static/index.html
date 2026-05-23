@@ -17,10 +17,9 @@
     <div class="bg-noise" aria-hidden="true"></div>
     <main class="shell">
       <header class="hero">
-        <p class="eyebrow">Text · 25 to 100,000 characters</p>
-        <h1>What language is&nbsp;this?</h1>
+        <h1>Language detection</h1>
         <p class="lede">
-          Paste any passage — we’ll guess the language, or split mixed-language text into segments.
+          Paste text to identify its language, or split mixed-language content into segments.
         </p>
         <ul class="lang-chips" aria-label="Supported languages">
           <li>English</li>
@@ -35,7 +34,7 @@
       <section class="panel" aria-labelledby="input-heading">
         <div class="panel-head">
           <h2 id="input-heading">Your text</h2>
-          <p class="panel-hint">Tip: longer samples usually give more confident results.</p>
+          <p class="panel-hint">Use 25 to 100,000 characters. Longer samples usually improve confidence.</p>
         </div>
         <label class="label visually-hidden" for="input">Text to analyze</label>
         <textarea
@@ -43,7 +42,7 @@
           name="q"
           rows="9"
           spellcheck="true"
-          placeholder="Drop in a paragraph, email, or article snippet…"
+          placeholder="Paste a paragraph, email, or article snippet..."
         ></textarea>
         <div class="toolbar">
           <span id="counter" class="counter" aria-live="polite">0 characters</span>
@@ -62,7 +61,7 @@
       <section id="result" class="result" hidden aria-live="polite"></section>
 
       <footer class="footer">
-        <p>Runs in your session — no accounts. Multilingual mode is experimental.</p>
+        <p>No account required. Multilingual segmentation is experimental.</p>
         <p class="footer-alt"><a href="/classic/">Original layout</a></p>
       </footer>
     </main>
