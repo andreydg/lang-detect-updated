@@ -1,9 +1,12 @@
 package language.model;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.util.List;
 import java.util.Locale;
 
-import junit.framework.TestCase;
+import org.junit.jupiter.api.Test;
+
 import language.model.NgramLanguageDetector.ClassificationAlgorithm;
 import language.model.multiling.LanguageBoundaryDetector;
 import language.model.multiling.SlidingWindowBigramBoundaryDetector;
@@ -11,43 +14,41 @@ import language.util.Pair;
 
 /**
  * Test multi-lang strings
- * 
+ *
  * @author Andrey Gusev
  */
-public class MultiLangTest extends TestCase {
-
-	public MultiLangTest(String name) {
-		super(name);
-	}
+class MultiLangTest {
 
 	// only checks the order, doesn't check the boundaries
-	public void testMultiLangOrder() throws Exception {
+	@Test
+	void testMultiLangOrder() throws Exception {
 
 		LanguageBoundaryDetector boundaryDetector = new SlidingWindowBigramBoundaryDetector(
 				ClassificationAlgorithm.LINEAR_WEIGHTS, NgramLanguageDetectorForTests.get(), 4);
 
 		StringBuilder sb = new StringBuilder();
-		sb.append(DefaultSingleLangTest.getEnglishString());
-		sb.append(DefaultSingleLangTest.getFrenchString());
-		sb.append(DefaultSingleLangTest.getItalianString());
-		sb.append(DefaultSingleLangTest.getGermanString());
-		sb.append(DefaultSingleLangTest.getSpanishString());
-		sb.append(DefaultSingleLangTest.getPortugueseString());
+		sb.append(BaseSingleLangTest.getEnglishString());
+		sb.append(BaseSingleLangTest.getFrenchString());
+		sb.append(BaseSingleLangTest.getItalianString());
+		sb.append(BaseSingleLangTest.getGermanString());
+		sb.append(BaseSingleLangTest.getSpanishString());
+		sb.append(BaseSingleLangTest.getPortugueseString());
 		List<Pair<String, Locale>> tags = boundaryDetector.tagStringWithLanguages(sb.toString());
 
-		assertEquals("Should have returned 6 phrases", 6, tags.size());
+		assertEquals(6, tags.size(), "Should have returned 6 phrases");
 
-		assertEquals("Didn't match language", Locale.ENGLISH, tags.get(0).second());
-		assertEquals("Didn't match language", Locale.FRENCH, tags.get(1).second());
-		assertEquals("Didn't match language", Locale.ITALIAN, tags.get(2).second());
-		assertEquals("Didn't match language", Locale.GERMAN, tags.get(3).second());
-		assertEquals("Didn't match language", new Locale("es"), tags.get(4).second());
-		assertEquals("Didn't match language", new Locale("pt"), tags.get(5).second());
+		assertEquals(Locale.ENGLISH, tags.get(0).second(), "Didn't match language");
+		assertEquals(Locale.FRENCH, tags.get(1).second(), "Didn't match language");
+		assertEquals(Locale.ITALIAN, tags.get(2).second(), "Didn't match language");
+		assertEquals(Locale.GERMAN, tags.get(3).second(), "Didn't match language");
+		assertEquals(Locale.of("es"), tags.get(4).second(), "Didn't match language");
+		assertEquals(Locale.of("pt"), tags.get(5).second(), "Didn't match language");
 
 	}
 
 	// for larger string only checks the order, doesn't check the boundaries
-	public void testLargeMultiLangOrder() throws Exception {
+	@Test
+	void testLargeMultiLangOrder() throws Exception {
 
 		LanguageBoundaryDetector boundaryDetector = new SlidingWindowBigramBoundaryDetector(
 				ClassificationAlgorithm.LINEAR_WEIGHTS, NgramLanguageDetectorForTests.get(), 4);
@@ -56,24 +57,24 @@ public class MultiLangTest extends TestCase {
 
 		StringBuilder sb = new StringBuilder(65536);
 		for (int ind = 0; ind < numRepetitions; ind++) {
-			sb.append(DefaultSingleLangTest.getEnglishString());
-			sb.append(DefaultSingleLangTest.getFrenchString());
-			sb.append(DefaultSingleLangTest.getItalianString());
-			sb.append(DefaultSingleLangTest.getGermanString());
-			sb.append(DefaultSingleLangTest.getSpanishString());
-			sb.append(DefaultSingleLangTest.getPortugueseString());
+			sb.append(BaseSingleLangTest.getEnglishString());
+			sb.append(BaseSingleLangTest.getFrenchString());
+			sb.append(BaseSingleLangTest.getItalianString());
+			sb.append(BaseSingleLangTest.getGermanString());
+			sb.append(BaseSingleLangTest.getSpanishString());
+			sb.append(BaseSingleLangTest.getPortugueseString());
 		}
 		List<Pair<String, Locale>> tags = boundaryDetector.tagStringWithLanguages(sb.toString());
 
-		assertEquals("Should have returned " + (6 * numRepetitions) + "phrases", 6 * numRepetitions, tags.size());
+		assertEquals(6 * numRepetitions, tags.size(), "Should have returned " + (6 * numRepetitions) + " phrases");
 
 		for (int ind = 0; ind < numRepetitions; ind++) {
-			assertEquals("Didn't match language", Locale.ENGLISH, tags.get(ind * 6).second());
-			assertEquals("Didn't match language", Locale.FRENCH, tags.get(ind * 6 + 1).second());
-			assertEquals("Didn't match language", Locale.ITALIAN, tags.get(ind * 6 + 2).second());
-			assertEquals("Didn't match language", Locale.GERMAN, tags.get(ind * 6 + 3).second());
-			assertEquals("Didn't match language", new Locale("es"), tags.get(ind * 6 + 4).second());
-			assertEquals("Didn't match language", new Locale("pt"), tags.get(ind * 6 + 5).second());
+			assertEquals(Locale.ENGLISH, tags.get(ind * 6).second(), "Didn't match language");
+			assertEquals(Locale.FRENCH, tags.get(ind * 6 + 1).second(), "Didn't match language");
+			assertEquals(Locale.ITALIAN, tags.get(ind * 6 + 2).second(), "Didn't match language");
+			assertEquals(Locale.GERMAN, tags.get(ind * 6 + 3).second(), "Didn't match language");
+			assertEquals(Locale.of("es"), tags.get(ind * 6 + 4).second(), "Didn't match language");
+			assertEquals(Locale.of("pt"), tags.get(ind * 6 + 5).second(), "Didn't match language");
 		}
 
 	}

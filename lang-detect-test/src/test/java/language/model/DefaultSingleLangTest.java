@@ -1,27 +1,25 @@
 package language.model;
 
+import org.junit.jupiter.api.Test;
+
 import language.model.NgramLanguageDetector.ClassificationAlgorithm;
 
 /**
  * Single language test with default linear weight combination
- * 
+ *
  * @author Andrey Gusev
- * 
  */
-public class DefaultSingleLangTest extends BaseSingleLangTest {
+class DefaultSingleLangTest extends BaseSingleLangTest {
 
-
-	public DefaultSingleLangTest(String name) {
-		super(name);
-	}
-	
 	// basic check with linear weights
-	public void testBasicPhraseLinear() throws Exception {
+	@Test
+	void testBasicPhraseLinear() throws Exception {
 		_testBasicPhrase(ClassificationAlgorithm.LINEAR_WEIGHTS);
 	}
-	
+
 	// check longer strings
-	public void testLargeEnglishString() throws Exception {
+	@Test
+	void testLargeEnglishString() throws Exception {
 		_testLargeEnglishString(ClassificationAlgorithm.LINEAR_WEIGHTS);
 	}
 

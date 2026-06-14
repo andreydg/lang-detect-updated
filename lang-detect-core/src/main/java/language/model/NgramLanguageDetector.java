@@ -129,19 +129,28 @@ public class NgramLanguageDetector implements LanguageDetector {
 		this.languageNgramModels = Collections.unmodifiableMap(populateLanguageModels());
 	}
 
+	/** Logs only the query length — never the user's text — to avoid leaking PII. */
 	public final void logQuery(String q) {
-		if (q != null && q.length() > 0) {
-			log.info("Q:[{}]", q);
+		if (q != null && !q.isEmpty()) {
+			log.info("Q length:[{}]", q.length());
 		}
 	}
 
 	protected final NgramModel getNgramModelForText(String text, NgramModel model, boolean adjustValue) {
 
-		if (text == null || text.length() == 0) {
+		if (text == null || text.isEmpty()) {
 			return model;
 		}
-		// String prevWord = null;
-		for (String word : LanguageUtil.tokenize(text, 1)) {
+		return addTokensToModel(LanguageUtil.tokenize(text, 1), model, adjustValue);
+	}
+
+	/**
+	 * Adds the n-grams of already-tokenized {@code words} to {@code model}. Split
+	 * out from {@link #getNgramModelForText} so callers that need text models for
+	 * several n-gram sizes can tokenize the input once and reuse the token list.
+	 */
+	private NgramModel addTokensToModel(List<String> words, NgramModel model, boolean adjustValue) {
+		for (String word : words) {
 			int wordLength = word.length();
 			// the value of ngram is not simply its count but is adjusted
 			// for longer words this way short language representative words
@@ -155,16 +164,6 @@ public class NgramLanguageDetector implements LanguageDetector {
 				// use original counts for building language model for text
 				model.addNgram(nGram, ngramValue);
 			}
-
-			// also track ngrams which capture transitions between words
-			// if (prevWord != null) {
-			// for (String nGram : model.getNgramsForWordCombination(prevWord,
-			// word)) {
-			// model.addNgram(nGram, 1.0);
-			// }
-			// }
-			//
-			// prevWord = word;
 		}
 		return model;
 	}
@@ -512,11 +511,18 @@ public class NgramLanguageDetector implements LanguageDetector {
 	public final SortedSet<Entry<Locale, Double>> detectLanguageWithLinearWeights(String text, boolean ignoreLowScores)
 			throws IOException {
 
+		// tokenize once and reuse the token list across all n-gram sizes instead
+		// of re-tokenizing the full input for each size
+		String trimmed = text.trim();
+		List<String> words = LanguageUtil.tokenize(trimmed, 1);
+
 		List<Map<Locale, Double>> listOfRawCosineSimilaties = new ArrayList<>(ngramSet.length);
 
 		// first get all the raw cosine similarities
 		for (int nGramSize : ngramSet) {
-			listOfRawCosineSimilaties.add(getRawCosineSimilarities(text, nGramSize, true));
+			NgramModel textModel =
+					trimmed.length() >= nGramSize ? addTokensToModel(words, new NgramModel(nGramSize), true) : null;
+			listOfRawCosineSimilaties.add(rawCosineSimilarities(textModel, nGramSize, true));
 		}
 
 		Map<Locale, Double> retValue = new HashMap<>();
@@ -577,10 +583,20 @@ public class NgramLanguageDetector implements LanguageDetector {
 	public final Map<Locale, Double> getRawCosineSimilarities(String text, int nGramSize, boolean addNgramWeight)
 			throws IOException {
 
-		text = text.trim();
+		String trimmed = text.trim();
 
-		NgramModel textModel = text.length() >= nGramSize ? this.getNgramModelForText(text, new NgramModel(nGramSize),
-				true) : null;
+		NgramModel textModel = trimmed.length() >= nGramSize
+				? this.getNgramModelForText(trimmed, new NgramModel(nGramSize), true) : null;
+
+		return rawCosineSimilarities(textModel, nGramSize, addNgramWeight);
+	}
+
+	/**
+	 * Cosine similarity of a prebuilt text model against every language model of
+	 * the given n-gram size. Lets callers build the text model once and avoid
+	 * re-tokenizing per size.
+	 */
+	private Map<Locale, Double> rawCosineSimilarities(NgramModel textModel, int nGramSize, boolean addNgramWeight) {
 
 		Map<Locale, Double> retVal = new HashMap<>();
 

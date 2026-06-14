@@ -6,32 +6,26 @@ import java.util.Locale;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import language.model.NgramLanguageDetector;
-import language.model.multiling.LanguageBoundaryDetector;
+import com.andreyg.langdetect.DetectionProperties;
+
 import language.util.Pair;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin
 public class DetectController {
 
-  private static final int MIN_LENGTH = 25;
-  private static final int MAX_LENGTH = 100_000;
+  private final DetectionService service;
+  private final DetectionProperties props;
 
-  private final NgramLanguageDetector detector;
-  private final LanguageBoundaryDetector boundaryDetector;
-
-  public DetectController(
-      NgramLanguageDetector detector, LanguageBoundaryDetector boundaryDetector) {
-    this.detector = detector;
-    this.boundaryDetector = boundaryDetector;
+  public DetectController(DetectionService service, DetectionProperties props) {
+    this.service = service;
+    this.props = props;
   }
 
   /**
@@ -41,7 +35,7 @@ public class DetectController {
    */
   @GetMapping("/config")
   public DetectConfig config() {
-    return new DetectConfig(MIN_LENGTH, MAX_LENGTH);
+    return new DetectConfig(props.getMinLength(), props.getMaxLength());
   }
 
   public record DetectConfig(int minLength, int maxLength) {}
@@ -55,7 +49,7 @@ public class DetectController {
           .body(new DetectResponse(null, null, null, null, "mode must be \"single\" or \"multi\""));
     }
 
-    if (text.length() > 0 && text.length() < MIN_LENGTH) {
+    if (text.length() > 0 && text.length() < props.getMinLength()) {
       return ResponseEntity.badRequest()
           .body(
               new DetectResponse(
@@ -63,9 +57,11 @@ public class DetectController {
                   null,
                   null,
                   null,
-                  "Minimum length for language detection is " + MIN_LENGTH + " characters"));
+                  "Minimum length for language detection is "
+                      + props.getMinLength()
+                      + " characters"));
     }
-    if (text.length() > MAX_LENGTH) {
+    if (text.length() > props.getMaxLength()) {
       return ResponseEntity.badRequest()
           .body(
               new DetectResponse(
@@ -73,7 +69,9 @@ public class DetectController {
                   null,
                   null,
                   null,
-                  "Maximum length for language detection is " + MAX_LENGTH + " characters"));
+                  "Maximum length for language detection is "
+                      + props.getMaxLength()
+                      + " characters"));
     }
 
     if (text.isEmpty()) {
@@ -82,8 +80,7 @@ public class DetectController {
 
     try {
       if ("multi".equals(mode)) {
-        List<Pair<String, Locale>> tagged = boundaryDetector.tagStringWithLanguages(text);
-        detector.logQuery(text);
+        List<Pair<String, Locale>> tagged = service.detectMulti(text);
         List<DetectResponse.Segment> segments =
             tagged.stream()
                 .map(
@@ -96,8 +93,7 @@ public class DetectController {
         return ResponseEntity.ok(new DetectResponse(mode, null, null, segments, null));
       }
 
-      Locale lang = detector.getMostLikelyLanguage(text);
-      detector.logQuery(text);
+      Locale lang = service.detectSingle(text);
       return ResponseEntity.ok(
           new DetectResponse(
               mode, lang.getDisplayLanguage(), lang.toLanguageTag(), null, null));

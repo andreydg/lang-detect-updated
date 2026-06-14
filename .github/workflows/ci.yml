@@ -33,3 +33,28 @@ jobs:
           name: surefire-reports
           path: '**/target/surefire-reports/*'
           if-no-files-found: ignore
+
+  ui:
+    name: UI tests (Node)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: lang-detect-web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: lang-detect-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run UI tests
+        run: npm test

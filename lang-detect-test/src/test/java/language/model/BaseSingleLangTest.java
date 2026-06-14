@@ -1,40 +1,35 @@
 package language.model;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.util.Locale;
 
-import junit.framework.TestCase;
 import language.model.NgramLanguageDetector.ClassificationAlgorithm;
 
 /**
  * Single language test
- * 
+ *
  * @author Andrey Gusev
- * 
  */
-public abstract class BaseSingleLangTest extends TestCase {
-	
-	
-	private final LanguageDetector detector;
-	
-	public BaseSingleLangTest(String name) {
-		super(name);
-		this.detector = NgramLanguageDetectorForTests.get();
-	}
-	
+public abstract class BaseSingleLangTest {
+
+	private final LanguageDetector detector = NgramLanguageDetectorForTests.get();
+
 	// basic check
 	protected void _testBasicPhrase(ClassificationAlgorithm type) throws Exception {
 
-		assertEquals("Didn't match language", Locale.ENGLISH, detector.getMostLikelyLanguage(getEnglishString(), type));
+		assertEquals(Locale.ENGLISH, detector.getMostLikelyLanguage(getEnglishString(), type), "Didn't match language");
 
-		assertEquals("Didn't match language", Locale.FRENCH, detector.getMostLikelyLanguage(getFrenchString(), type));
+		assertEquals(Locale.FRENCH, detector.getMostLikelyLanguage(getFrenchString(), type), "Didn't match language");
 
-		assertEquals("Didn't match language", Locale.ITALIAN, detector.getMostLikelyLanguage(getItalianString(), type));
+		assertEquals(Locale.ITALIAN, detector.getMostLikelyLanguage(getItalianString(), type), "Didn't match language");
 
-		assertEquals("Didn't match language", Locale.GERMAN, detector.getMostLikelyLanguage(getGermanString(), type));
+		assertEquals(Locale.GERMAN, detector.getMostLikelyLanguage(getGermanString(), type), "Didn't match language");
 
-		assertEquals("Didn't match language", new Locale("es"), detector.getMostLikelyLanguage(getSpanishString(), type));
+		assertEquals(Locale.of("es"), detector.getMostLikelyLanguage(getSpanishString(), type), "Didn't match language");
 
-		assertEquals("Didn't match language", new Locale("pt"), detector.getMostLikelyLanguage(getPortugueseString(), type));
+		assertEquals(
+				Locale.of("pt"), detector.getMostLikelyLanguage(getPortugueseString(), type), "Didn't match language");
 
 	}
 
@@ -46,7 +41,7 @@ public abstract class BaseSingleLangTest extends TestCase {
 			sb.append(getEnglishString()).append(" ");
 		}
 
-		assertEquals("Didn't match language", Locale.ENGLISH, detector.getMostLikelyLanguage(sb.toString(), type));
+		assertEquals(Locale.ENGLISH, detector.getMostLikelyLanguage(sb.toString(), type), "Didn't match language");
 	}
 
 	protected static String getEnglishString() {
@@ -72,6 +67,5 @@ public abstract class BaseSingleLangTest extends TestCase {
 	protected static String getPortugueseString() {
 		return "Esta é uma seqüência de teste para detecção de idioma";
 	}
-
 
 }

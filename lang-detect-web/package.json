@@ -1,0 +1,14 @@
+{
+  "name": "lang-detect-ui",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Front-end unit tests for the lang-detect web UI",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.9"
+  }
+}
