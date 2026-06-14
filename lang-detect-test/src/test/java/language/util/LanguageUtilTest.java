@@ -1,12 +1,13 @@
 package language.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,8 +18,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for {@link LanguageUtil}.
@@ -27,10 +28,10 @@ import org.junit.Test;
  * and bounded-memory guarantees of the shared n-gram cache (the cache is reached
  * concurrently by the singleton detector serving web requests).
  */
-public class LanguageUtilTest {
+class LanguageUtilTest {
 
-	@Before
-	public void resetCache() {
+	@BeforeEach
+	void resetCache() {
 		LanguageUtil.clearNgramCache();
 	}
 
@@ -39,26 +40,26 @@ public class LanguageUtilTest {
 	// ---------------------------------------------------------------------
 
 	@Test
-	public void tokenizeSplitsLowercasesAndTrims() {
+	void tokenizeSplitsLowercasesAndTrims() {
 		List<String> tokens = LanguageUtil.tokenize("Hello, WORLD! foo-bar", 0);
 		// '-' is a delimiter, so foo-bar splits into two tokens
 		assertEquals(List.of("hello", "world", "foo", "bar"), tokens);
 	}
 
 	@Test
-	public void tokenizeRespectsMinLength() {
+	void tokenizeRespectsMinLength() {
 		List<String> tokens = LanguageUtil.tokenize("a bb ccc dddd", 3);
 		assertEquals(List.of("ccc", "dddd"), tokens);
 	}
 
 	@Test
-	public void tokenizeEmptyStringYieldsNoTokens() {
+	void tokenizeEmptyStringYieldsNoTokens() {
 		assertTrue(LanguageUtil.tokenize("", 0).isEmpty());
 		assertTrue(LanguageUtil.tokenize("   \t\n  ", 0).isEmpty());
 	}
 
 	@Test
-	public void tokenizeDropsOverlongWords() {
+	void tokenizeDropsOverlongWords() {
 		String huge = "x".repeat(250);
 		List<String> tokens = LanguageUtil.tokenize(huge + " ok", 0);
 		assertEquals(List.of("ok"), tokens);
@@ -69,20 +70,20 @@ public class LanguageUtilTest {
 	// ---------------------------------------------------------------------
 
 	@Test
-	public void bigramsIncludeWordBoundaryMarkers() {
+	void bigramsIncludeWordBoundaryMarkers() {
 		Set<String> grams = LanguageUtil.getNgrams("test", 2);
 		assertEquals(Set.of("$t", "te", "es", "st", "t$"), grams);
 	}
 
 	@Test
-	public void unigramsKeepOnlyLetters() {
+	void unigramsKeepOnlyLetters() {
 		// boundary markers and digits are not letters and must be excluded
 		Set<String> grams = LanguageUtil.getNgrams("a1b", 1);
 		assertEquals(Set.of("a", "b"), grams);
 	}
 
 	@Test
-	public void digitsAreStrippedFromMultiCharNgrams() {
+	void digitsAreStrippedFromMultiCharNgrams() {
 		Set<String> grams = LanguageUtil.getNgrams("a1", 2);
 		// "$a1$" bigrams are $a, a1, 1$ — only $a survives digit stripping
 		assertTrue(grams.contains("$a"));
@@ -91,32 +92,32 @@ public class LanguageUtilTest {
 	}
 
 	@Test
-	public void wordShorterThanNgramReturnsEmpty() {
+	void wordShorterThanNgramReturnsEmpty() {
 		assertTrue(LanguageUtil.getNgrams("a", 4).isEmpty());
 		assertTrue(LanguageUtil.getNgrams("", 3).isEmpty());
 	}
 
 	@Test
-	public void nullWordReturnsEmpty() {
+	void nullWordReturnsEmpty() {
 		assertTrue(LanguageUtil.getNgrams(null, 3).isEmpty());
 	}
 
 	@Test
-	public void resultIsCachedAndReturnsSameInstance() {
+	void resultIsCachedAndReturnsSameInstance() {
 		Set<String> first = LanguageUtil.getNgrams("language", 3);
 		Set<String> second = LanguageUtil.getNgrams("language", 3);
-		assertSame("cache should return the identical instance", first, second);
+		assertSame(first, second, "cache should return the identical instance");
 	}
 
 	@Test
-	public void sameWordDifferentSizesAreCachedSeparately() {
+	void sameWordDifferentSizesAreCachedSeparately() {
 		Set<String> two = LanguageUtil.getNgrams("language", 2);
 		Set<String> three = LanguageUtil.getNgrams("language", 3);
 		assertFalse(two.equals(three));
 	}
 
 	@Test
-	public void returnedSetIsUnmodifiable() {
+	void returnedSetIsUnmodifiable() {
 		Set<String> grams = LanguageUtil.getNgrams("test", 2);
 		assertThrows(UnsupportedOperationException.class, () -> grams.add("zz"));
 	}
@@ -126,14 +127,14 @@ public class LanguageUtilTest {
 	// ---------------------------------------------------------------------
 
 	@Test
-	public void wordCombinationKeepsOnlyCrossBoundaryNgrams() {
+	void wordCombinationKeepsOnlyCrossBoundaryNgrams() {
 		Set<String> grams = LanguageUtil.getNgramsForWordCombination("ab", "cd", 3);
 		// every kept ngram must contain the boundary char, but not at either edge
 		assertFalse(grams.isEmpty());
 		for (String g : grams) {
-			assertTrue("expected internal boundary in " + g, g.contains("$"));
-			assertFalse("boundary should not be first char of " + g, g.charAt(0) == '$');
-			assertFalse("boundary should not be last char of " + g, g.charAt(g.length() - 1) == '$');
+			assertTrue(g.contains("$"), "expected internal boundary in " + g);
+			assertFalse(g.charAt(0) == '$', "boundary should not be first char of " + g);
+			assertFalse(g.charAt(g.length() - 1) == '$', "boundary should not be last char of " + g);
 		}
 	}
 
@@ -142,18 +143,18 @@ public class LanguageUtilTest {
 	// ---------------------------------------------------------------------
 
 	@Test
-	public void jaccardOfIdenticalSetsIsOne() {
+	void jaccardOfIdenticalSetsIsOne() {
 		Set<String> a = Set.of("x", "y", "z");
 		assertEquals(1.0f, LanguageUtil.getJaccardCoefficient(a, a), 1e-6);
 	}
 
 	@Test
-	public void jaccardOfDisjointSetsIsZero() {
+	void jaccardOfDisjointSetsIsZero() {
 		assertEquals(0.0f, LanguageUtil.getJaccardCoefficient(Set.of("a"), Set.of("b")), 1e-6);
 	}
 
 	@Test
-	public void jaccardOfPartialOverlap() {
+	void jaccardOfPartialOverlap() {
 		// intersection {b} = 1, union {a,b,c} = 3
 		float j = LanguageUtil.getJaccardCoefficient(Set.of("a", "b"), Set.of("b", "c"));
 		assertEquals(1.0f / 3.0f, j, 1e-6);
@@ -164,7 +165,7 @@ public class LanguageUtilTest {
 	// ---------------------------------------------------------------------
 
 	@Test
-	public void joinWithSpaceHandlesEmptyAndNull() {
+	void joinWithSpaceHandlesEmptyAndNull() {
 		assertEquals("a b", LanguageUtil.joinWithSpace("a", "b"));
 		assertEquals("b", LanguageUtil.joinWithSpace("", "b"));
 		assertEquals("a", LanguageUtil.joinWithSpace("a", ""));
@@ -185,7 +186,7 @@ public class LanguageUtilTest {
 	 * that no exception escapes.
 	 */
 	@Test
-	public void getNgramsIsThreadSafeUnderConcurrency() throws Exception {
+	void getNgramsIsThreadSafeUnderConcurrency() throws Exception {
 		final int sharedWords = 200;
 		final int threads = 16;
 		final int iterations = 400;
@@ -201,7 +202,7 @@ public class LanguageUtilTest {
 		CountDownLatch start = new CountDownLatch(1);
 		AtomicReference<Throwable> failure = new AtomicReference<>();
 
-		List<Future<?>> futures = new java.util.ArrayList<>();
+		List<Future<?>> futures = new ArrayList<>();
 		for (int t = 0; t < threads; t++) {
 			final int threadId = t;
 			futures.add(pool.submit(() -> {
@@ -226,7 +227,7 @@ public class LanguageUtilTest {
 
 		start.countDown();
 		pool.shutdown();
-		assertTrue("threads did not finish in time", pool.awaitTermination(60, TimeUnit.SECONDS));
+		assertTrue(pool.awaitTermination(60, TimeUnit.SECONDS), "threads did not finish in time");
 		for (Future<?> f : futures) {
 			f.get(); // surface any execution exception
 		}
@@ -241,7 +242,7 @@ public class LanguageUtilTest {
 	 * long-running service).
 	 */
 	@Test
-	public void cacheIsBounded() {
+	void cacheIsBounded() {
 		LanguageUtil.clearNgramCache();
 		final int distinct = 60_000; // exceeds MAX_CACHE_ENTRIES (50_000)
 		for (int i = 0; i < distinct; i++) {
@@ -249,12 +250,12 @@ public class LanguageUtilTest {
 			assertNotNull(grams);
 		}
 		int size = LanguageUtil.nGramCacheSize();
-		assertTrue("cache must stay bounded but was " + size, size <= 50_000);
-		assertTrue("cache should retain recent entries", size > 0);
+		assertTrue(size <= 50_000, "cache must stay bounded but was " + size);
+		assertTrue(size > 0, "cache should retain recent entries");
 	}
 
 	@Test
-	public void clearAndSizeReflectState() {
+	void clearAndSizeReflectState() {
 		LanguageUtil.clearNgramCache();
 		assertEquals(0, LanguageUtil.nGramCacheSize());
 		LanguageUtil.getNgrams("hello", 3);

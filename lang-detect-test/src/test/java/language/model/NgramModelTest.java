@@ -1,12 +1,12 @@
 package language.model;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Locale;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for {@link NgramModel} cosine-similarity scoring and its
@@ -123,9 +123,9 @@ public class NgramModelTest {
 				continue;
 			}
 			String[] parts = line.split(NgramModel.NGRAM_SEPARTOR);
-			assertEquals("malformed dump line: " + line, 2, parts.length);
+			assertEquals(2, parts.length, "malformed dump line: " + line);
 			lines++;
 		}
-		assertEquals("expected one line per ngram", 2, lines);
+		assertEquals(2, lines, "expected one line per ngram");
 	}
 }

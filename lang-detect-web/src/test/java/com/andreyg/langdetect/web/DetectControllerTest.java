@@ -2,6 +2,8 @@ package com.andreyg.langdetect.web;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -18,17 +20,18 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.andreyg.langdetect.DetectionProperties;
+
 import language.model.NgramLanguageDetector;
 import language.model.multiling.LanguageBoundaryDetector;
 import language.util.Pair;
 
 /**
- * Web-layer tests for {@link DetectController}: request validation, mode
- * dispatch, response shape, and error mapping.
+ * Web-layer tests for {@link DetectController} and its supporting filter/advice.
  *
- * <p>Uses a standalone {@link MockMvc} over the real controller with the
- * detection collaborators mocked, so the tests run fast and need neither the
- * on-disk language models nor a full Spring context.
+ * <p>Uses a standalone {@link MockMvc} over the real controller + service with
+ * the core detectors mocked, so the tests run fast and need neither the on-disk
+ * language models nor a full Spring context.
  */
 class DetectControllerTest {
 
@@ -36,13 +39,20 @@ class DetectControllerTest {
 
   private NgramLanguageDetector detector;
   private LanguageBoundaryDetector boundaryDetector;
+  private DetectionProperties props;
   private MockMvc mvc;
 
   @BeforeEach
   void setUp() {
     detector = mock(NgramLanguageDetector.class);
     boundaryDetector = mock(LanguageBoundaryDetector.class);
-    mvc = MockMvcBuilders.standaloneSetup(new DetectController(detector, boundaryDetector)).build();
+    props = new DetectionProperties();
+    DetectionService service = new DetectionService(detector, boundaryDetector, props);
+    mvc =
+        MockMvcBuilders.standaloneSetup(new DetectController(service, props))
+            .setControllerAdvice(new GlobalExceptionHandler())
+            .addFilters(new PayloadLimitFilter(props))
+            .build();
   }
 
   private static String body(String text, String mode) {
@@ -162,7 +172,7 @@ class DetectControllerTest {
   }
 
   @Test
-  void detectionFailureMapsToServerError() throws Exception {
+  void detectionIoFailureMapsToServerError() throws Exception {
     when(detector.getMostLikelyLanguage(anyString())).thenThrow(new IOException("boom"));
 
     mvc.perform(
@@ -171,5 +181,63 @@ class DetectControllerTest {
                 .content(body(VALID_TEXT, "single")))
         .andExpect(status().isInternalServerError())
         .andExpect(jsonPath("$.error").value("Detection failed: boom"));
+  }
+
+  @Test
+  void uncheckedFailureMapsToGenericServerError() throws Exception {
+    when(detector.getMostLikelyLanguage(anyString()))
+        .thenThrow(new IllegalStateException("model parse error"));
+
+    mvc.perform(
+            post("/api/detect")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(VALID_TEXT, "single")))
+        .andExpect(status().isInternalServerError())
+        .andExpect(jsonPath("$.error").value("Internal server error"));
+  }
+
+  @Test
+  void malformedJsonReturnsBadRequest() throws Exception {
+    mvc.perform(
+            post("/api/detect")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{ this is not json"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error").value("Malformed JSON request"));
+  }
+
+  @Test
+  void identicalRequestsAreServedFromCache() throws Exception {
+    when(detector.getMostLikelyLanguage(anyString())).thenReturn(Locale.ENGLISH);
+
+    for (int i = 0; i < 3; i++) {
+      mvc.perform(
+              post("/api/detect")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body(VALID_TEXT, "single")))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.languageTag").value("en"));
+    }
+    // detector hit only once; subsequent identical requests came from the cache
+    verify(detector, times(1)).getMostLikelyLanguage(anyString());
+  }
+
+  @Test
+  void oversizedPayloadIsRejectedEarly() throws Exception {
+    DetectionProperties tiny = new DetectionProperties();
+    tiny.setMaxPayloadBytes(10);
+    DetectionService service = new DetectionService(detector, boundaryDetector, tiny);
+    MockMvc limited =
+        MockMvcBuilders.standaloneSetup(new DetectController(service, tiny))
+            .addFilters(new PayloadLimitFilter(tiny))
+            .build();
+
+    limited
+        .perform(
+            post("/api/detect")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(VALID_TEXT, "single")))
+        .andExpect(status().isPayloadTooLarge())
+        .andExpect(jsonPath("$.error").value("Request body too large"));
   }
 }

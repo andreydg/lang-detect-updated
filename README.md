@@ -32,6 +32,25 @@ From the repository root:
 
 Then open `http://localhost:8080/`. The UI calls `POST /api/detect` with JSON `{ "text": "...", "mode": "single" | "multi" }`.
 
+Other endpoints:
+
+* `GET /api/config` — returns the server-side validation limits (`{ "minLength", "maxLength" }`) so the UI stays in sync with the server.
+* `GET /actuator/health` — health probe (with `liveness`/`readiness` groups) for Cloud Run / uptime checks.
+
+### Configuration
+
+Tunable via `langdetect.*` properties (see `DetectionProperties`); all have defaults:
+
+| Property | Default | Purpose |
+|---|---|---|
+| `langdetect.min-length` | `25` | Minimum input length (characters). |
+| `langdetect.max-length` | `100000` | Maximum input length (characters). |
+| `langdetect.max-payload-bytes` | `1048576` | Hard cap on request body size (413 above it). |
+| `langdetect.warmup` | `true` | Warm the detector at startup so the first request is fast. |
+| `langdetect.cache-max-entries` | `500` | Max entries in the in-memory result cache. |
+| `langdetect.cache-max-text-length` | `4096` | Only cache results for inputs at or below this length. |
+| `langdetect.allowed-origins` | _(empty)_ | CORS origins for `/api/**`; empty means same-origin only. |
+
 ### Model path
 
 The app looks for a `languagemodels` directory in this order:
@@ -61,6 +80,19 @@ Override test data location:
 ```
 
 (`war` must contain a `languagemodels` directory.)
+
+### UI tests
+
+The front-end (`lang-detect-web/src/main/resources/static/app.js`) has unit tests
+run with [Vitest](https://vitest.dev) + jsdom:
+
+```bash
+cd lang-detect-web
+npm install
+npm test
+```
+
+Both the Maven and UI test suites run in CI (`.github/workflows/ci.yml`).
 
 ## Data directory
 
