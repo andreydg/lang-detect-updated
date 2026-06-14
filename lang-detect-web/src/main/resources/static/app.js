@@ -1,5 +1,7 @@
-const MIN = 25;
-const MAX = 100000;
+// Fallback limits; the authoritative values are fetched from /api/config so the
+// client stays in sync with the server's validation rules (single source: Java).
+let MIN = 25;
+let MAX = 100000;
 
 const input = document.getElementById("input");
 const counter = document.getElementById("counter");
@@ -7,6 +9,27 @@ const errorEl = document.getElementById("error");
 const resultEl = document.getElementById("result");
 const btnSingle = document.getElementById("btn-single");
 const btnMulti = document.getElementById("btn-multi");
+const hintEl = document.getElementById("hint");
+
+function updateHint() {
+  if (hintEl) {
+    hintEl.textContent = `Use ${MIN} to ${MAX.toLocaleString()} characters. Longer samples usually improve confidence.`;
+  }
+}
+
+async function loadConfig() {
+  try {
+    const res = await fetch("/api/config");
+    if (!res.ok) return;
+    const cfg = await res.json();
+    if (Number.isFinite(cfg.minLength)) MIN = cfg.minLength;
+    if (Number.isFinite(cfg.maxLength)) MAX = cfg.maxLength;
+  } catch {
+    // keep fallback defaults if the config endpoint is unreachable
+  } finally {
+    updateHint();
+  }
+}
 
 function setError(msg) {
   if (!msg) {
@@ -117,3 +140,5 @@ input.addEventListener("input", () => {
 btnSingle.addEventListener("click", () => run("single"));
 btnMulti.addEventListener("click", () => run("multi"));
 updateCounter();
+updateHint();
+loadConfig();

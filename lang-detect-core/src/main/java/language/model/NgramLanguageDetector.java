@@ -55,7 +55,7 @@ public class NgramLanguageDetector implements LanguageDetector {
 	private static final Random rnd = new Random(1);
 
 	// path constants
-	public static String BASE_MODEL_DIR = "languagemodels";
+	public static final String BASE_MODEL_DIR = "languagemodels";
 	public static final String NGRAM_MODEL_DIR = "ngramModel";
 	public static final String TRAINING_TEST_DIR = "trainingAndTestSet";
 	public static final String LOGISTIC_CLASSFIER_DIR = "logisticClassifier";
@@ -108,8 +108,8 @@ public class NgramLanguageDetector implements LanguageDetector {
 
 	static {
 		// EFIGS languages + portuguese
-		LOCALES = new Locale[] { Locale.ENGLISH, Locale.FRENCH, Locale.ITALIAN, Locale.GERMAN, new Locale("es"),
-				new Locale("pt") };
+		LOCALES = new Locale[] { Locale.ENGLISH, Locale.FRENCH, Locale.ITALIAN, Locale.GERMAN, Locale.of("es"),
+				Locale.of("pt") };
 
 		LOCALE_MAP = Arrays.stream(LOCALES)
 				.collect(Collectors.toUnmodifiableMap(Locale::toString, loc -> loc));
