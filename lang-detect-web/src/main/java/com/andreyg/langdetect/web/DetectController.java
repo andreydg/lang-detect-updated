@@ -7,6 +7,7 @@ import java.util.Locale;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,6 +33,18 @@ public class DetectController {
     this.detector = detector;
     this.boundaryDetector = boundaryDetector;
   }
+
+  /**
+   * Exposes the server-side validation limits so the UI can enforce the same
+   * bounds without hard-coding them. The server remains authoritative — this is
+   * only to keep the client copy in sync.
+   */
+  @GetMapping("/config")
+  public DetectConfig config() {
+    return new DetectConfig(MIN_LENGTH, MAX_LENGTH);
+  }
+
+  public record DetectConfig(int minLength, int maxLength) {}
 
   @PostMapping("/detect")
   public ResponseEntity<DetectResponse> detect(@RequestBody DetectRequest request) {

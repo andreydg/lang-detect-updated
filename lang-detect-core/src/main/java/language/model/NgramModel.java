@@ -37,8 +37,6 @@ public class NgramModel {
 	// not null when NgramModel represents specific language
 	private Locale languageDefinition;
 
-	public final Map<String, Set<String>> nGramCache;
-
 	private final int ngramSize;
 
 	public NgramModel(int ngramSize) {
@@ -46,7 +44,6 @@ public class NgramModel {
 	}
 
 	public NgramModel(Locale languageDefinition, int ngramSize) {
-		this.nGramCache = new HashMap<>();
 		this.rawNgramFrequency = new HashMap<>(64);
 		this.languageDefinition = languageDefinition;
 		// if this is already normalized vector we don't have to compute length
@@ -161,6 +158,8 @@ public class NgramModel {
 				cosineSimilarity += ngram.frequency * anotherModel.rawNgramFrequency.get(ngram.nGramValue);
 			}
 			counter++;
+			// processes actualTopNGrams + 1 entries; the same bound is applied
+			// in getLengthNorm, so the extra term cancels in the cosine ratio.
 			if (counter > this.actualTopNGrams) {
 				break;
 			}
