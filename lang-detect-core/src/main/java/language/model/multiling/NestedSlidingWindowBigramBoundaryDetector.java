@@ -45,7 +45,6 @@ public class NestedSlidingWindowBigramBoundaryDetector extends BigramBoundaryDet
 
 		// prevToken[0],prevToken[1],...,prevToken[maxPrevTokens-1]
 		String[] prevTokens = new String[windowSize];
-		Pair<String, Locale> previousPair = null;
 		while (st.hasMoreTokens()) {
 			prevTokens[0] = st.nextToken();
 			slidingWindow.append(prevTokens[0]).append(" ");
@@ -59,7 +58,7 @@ public class NestedSlidingWindowBigramBoundaryDetector extends BigramBoundaryDet
 				prevTokens[0] = null;
 				continue;
 			}
-			Locale locale = getLanguageWithDefault(slidingWindow.toString().trim());
+			Locale locale = getWindowLanguage(slidingWindow.toString().trim());
 			// remove the last token
 			slidingWindow.delete(0, prevTokens[windowSize - 1].length() + 1);
 
@@ -89,18 +88,7 @@ public class NestedSlidingWindowBigramBoundaryDetector extends BigramBoundaryDet
 						prevTokens[ind + 1] = null;
 					}
 
-					String stringToAdd = currentString.toString().trim();
-					Pair<String, Locale> thisPair = new Pair<>(stringToAdd, this.getLanguageWithDefault(stringToAdd));
-					// if the languages are the same we can collapse it into one
-					// language
-					if (previousPair != null && previousPair.second().equals(thisPair.second())) {
-						retVal.remove(retVal.size() - 1);
-						previousPair = new Pair<>(LanguageUtil.joinWithSpace(previousPair.first(), stringToAdd), previousPair.second());
-						retVal.add(previousPair);
-					} else {
-						retVal.add(thisPair);
-						previousPair = thisPair;
-					}
+					appendSegment(retVal, currentString.toString().trim());
 
 					currentString.delete(0, currentString.length());
 					// reset locale so that prevLocale will be null for next
@@ -119,18 +107,7 @@ public class NestedSlidingWindowBigramBoundaryDetector extends BigramBoundaryDet
 
 		if (currentString.length() > 0 || slidingWindow.length() > 0) {
 			String stringToAdd = currentString.toString().trim() + " " + slidingWindow.toString().trim();
-			stringToAdd = stringToAdd.trim();
-			Pair<String, Locale> thisPair = new Pair<>(stringToAdd, this.getLanguageWithDefault(stringToAdd));
-			// if the languages are the same we can collapse it into one
-			// language
-			if (previousPair != null && previousPair.second().equals(thisPair.second())) {
-				retVal.remove(retVal.size() - 1);
-				previousPair = new Pair<>(LanguageUtil.joinWithSpace(previousPair.first(), stringToAdd), previousPair.second());
-				retVal.add(previousPair);
-			} else {
-				retVal.add(thisPair);
-				previousPair = thisPair;
-			}
+			appendSegment(retVal, stringToAdd.trim());
 		}
 
 		return retVal;

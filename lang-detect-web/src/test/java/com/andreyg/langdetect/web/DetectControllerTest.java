@@ -1,6 +1,7 @@
 package com.andreyg.langdetect.web;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -8,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -18,6 +20,7 @@ import java.util.Locale;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -178,16 +181,28 @@ class DetectControllerTest {
   }
 
   @Test
-  void exceptionWithItsOwnStatusKeepsIt() throws Exception {
-    when(detector.getMostLikelyLanguage(anyString()))
-        .thenThrow(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Models still loading"));
+  void serverErrorKeepsStatusAndHeadersButNotItsDetail() throws Exception {
+    ResponseStatusException unavailable =
+        new ResponseStatusException(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "Model store unavailable at /srv/private/models/customer-17") {
+          @Override
+          public HttpHeaders getHeaders() {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.RETRY_AFTER, "30");
+            return headers;
+          }
+        };
+    when(detector.getMostLikelyLanguage(anyString())).thenThrow(unavailable);
 
     mvc.perform(
             post("/api/detect")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body(VALID_TEXT, "single")))
         .andExpect(status().isServiceUnavailable())
-        .andExpect(jsonPath("$.error").value("Models still loading"));
+        .andExpect(header().string(HttpHeaders.RETRY_AFTER, "30"))
+        .andExpect(jsonPath("$.error").value("Service Unavailable"))
+        .andExpect(content().string(not(containsString("/srv/private"))));
   }
 
   @Test

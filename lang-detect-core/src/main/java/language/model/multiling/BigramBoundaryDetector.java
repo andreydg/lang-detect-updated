@@ -110,7 +110,6 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 		StringBuilder currentString = new StringBuilder();
 		String prevToken = null;
 		StringBuilder slidingWindow = new StringBuilder();
-		Pair<String, Locale> previousPair = null;
 		while (st.hasMoreTokens()) {
 			String currentToken = st.nextToken();
 			slidingWindow.append(currentToken).append(" ");
@@ -124,19 +123,7 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 
 			int count = getBigramCount(slidingWindow.toString().trim());
 			if (count == 0) {
-				String stringToAdd = currentString.toString().trim();
-				Pair<String, Locale> thisPair = new Pair<>(stringToAdd, this.getLanguageWithDefault(stringToAdd));
-				// if the languages are the same we can collapse it into one
-				// language
-				if (previousPair != null && previousPair.second().equals(thisPair.second())) {
-					retVal.remove(retVal.size() - 1);
-					previousPair = new Pair<>(LanguageUtil.joinWithSpace(previousPair.first(), stringToAdd), previousPair.second());
-					retVal.add(previousPair);
-
-				} else {
-					retVal.add(thisPair);
-					previousPair = thisPair;
-				}
+				appendSegment(retVal, currentString.toString().trim());
 				currentString.delete(0, currentString.length());
 			}
 			// remove prevToken
@@ -147,16 +134,7 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 
 		if (currentString.length() > 0 || slidingWindow.length() > 0) {
 			String stringToAdd = currentString.toString().trim() + " " + slidingWindow.toString().trim();
-			stringToAdd = stringToAdd.trim();
-			Pair<String, Locale> thisPair = new Pair<>(stringToAdd, this.getLanguageWithDefault(stringToAdd));
-			// if the languages are the same we can collapse it into one
-			// language
-			if (previousPair.second().equals(thisPair.second())) {
-				retVal.remove(retVal.size() - 1);
-				retVal.add(new Pair<>(LanguageUtil.joinWithSpace(previousPair.first(), stringToAdd), previousPair.second()));
-			} else {
-				retVal.add(thisPair);
-			}
+			appendSegment(retVal, stringToAdd.trim());
 		}
 
 		return retVal;
@@ -169,6 +147,53 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 		} else {
 			return count;
 		}
+	}
+
+	/**
+	 * Language of a sliding window, for deciding where language boundaries are.
+	 * Letters no supported language recognizes (another script) make the window
+	 * {@link LanguageDetector#UNDETERMINED}, so that text gets its own segment.
+	 * A window of only digits and punctuation carries no language evidence and
+	 * keeps the English default it always had, so boundary decisions for it are
+	 * unchanged; {@link #appendSegment} then merges any digits-only fragment
+	 * back into the text next to it.
+	 */
+	protected Locale getWindowLanguage(String window) throws IOException {
+		Locale detected = detector.getMostLikelyLanguage(window, algorithmToUse);
+		if (detected != null) {
+			return detected;
+		}
+		return isLanguageNeutral(window) ? Locale.ENGLISH : LanguageDetector.UNDETERMINED;
+	}
+
+	/**
+	 * Adds {@code text} as the next segment, merging it into the previous one
+	 * when both have the same language, or when either is only digits and
+	 * punctuation: those have no language of their own and join the text next
+	 * to them. Input that is nothing but digits and punctuation stays
+	 * {@link LanguageDetector#UNDETERMINED}.
+	 *
+	 * @return the last segment
+	 */
+	protected Pair<String, Locale> appendSegment(List<Pair<String, Locale>> segments, String text)
+			throws IOException {
+		Pair<String, Locale> segment = new Pair<>(text, getLanguageWithDefault(text));
+		if (!segments.isEmpty()) {
+			Pair<String, Locale> previous = segments.get(segments.size() - 1);
+			boolean previousNeutral = isLanguageNeutral(previous.first());
+			if (previousNeutral || isLanguageNeutral(text) || previous.second().equals(segment.second())) {
+				Locale language = previousNeutral ? segment.second() : previous.second();
+				segment = new Pair<>(LanguageUtil.joinWithSpace(previous.first(), text), language);
+				segments.remove(segments.size() - 1);
+			}
+		}
+		segments.add(segment);
+		return segment;
+	}
+
+	/** True for text with no letters at all: only digits, punctuation and symbols. */
+	private static boolean isLanguageNeutral(String text) {
+		return text.codePoints().noneMatch(Character::isLetter);
 	}
 
 	/**

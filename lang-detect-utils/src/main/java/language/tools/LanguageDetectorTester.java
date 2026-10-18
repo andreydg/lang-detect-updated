@@ -13,6 +13,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import language.model.LanguageDetector;
 import language.model.NgramLanguageDetectorWithUtils;
 import language.model.NgramLanguageDetector.BoundaryDetectionAlgorithm;
 import language.model.NgramLanguageDetector.ClassificationAlgorithm;
@@ -130,7 +131,7 @@ public class LanguageDetectorTester {
 						List<Pair<String, Locale>> retVal = boundaryDetector.tagStringWithLanguages(testMultiString);
 						System.out.println("---------- Language Tagged String----------\n");
 						for (Pair<String, Locale> pair : retVal) {
-							System.out.println(pair.first() + " -> " + pair.second());
+							System.out.println(pair.first() + " -> " + LanguageDetector.languageTag(pair.second()));
 						}
 					}
 				} while (testMultiString != null && testMultiString.length() > 0);

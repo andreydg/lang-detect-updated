@@ -22,6 +22,15 @@ public interface LanguageDetector {
 	Locale UNDETERMINED = Locale.ROOT;
 
 	/**
+	 * BCP 47 tag for a detection result: {@code "und"} for {@link #UNDETERMINED}
+	 * and for {@code null} (no supported language). Use it instead of
+	 * {@link Locale#toString()}, which is empty for {@link Locale#ROOT}.
+	 */
+	static String languageTag(Locale locale) {
+		return locale == null ? UNDETERMINED.toLanguageTag() : locale.toLanguageTag();
+	}
+
+	/**
 	 * @param text
 	 *            - text for which we will detect language
 	 * @return most likely language with default algorithm, or {@code null} when
