@@ -103,8 +103,33 @@ class MultiLangTest {
 		}
 	}
 
+	// a digits or punctuation run between two languages must not hide the boundary;
+	// the nested detector reads it from its smaller detector's raw segments
+	@Test
+	void testNeutralRunBetweenLanguages() throws Exception {
+
+		NgramLanguageDetector detector = NgramLanguageDetectorForTests.get();
+		List<LanguageBoundaryDetector> boundaryDetectors = List.of(
+				new SlidingWindowBigramBoundaryDetector(ClassificationAlgorithm.LINEAR_WEIGHTS, detector, 4),
+				new NestedSlidingWindowBigramBoundaryDetector(ClassificationAlgorithm.LINEAR_WEIGHTS, detector, 5));
+		String french = "Ceci est une phrase en français pour tester la détection de la langue";
+
+		for (LanguageBoundaryDetector boundaryDetector : boundaryDetectors) {
+			for (String run : List.of(". . . .", "1 2 3 4")) {
+				String text = BaseSingleLangTest.getEnglishString() + " " + run + " " + french;
+				List<Pair<String, Locale>> tags = boundaryDetector.tagStringWithLanguages(text);
+				String context = boundaryDetector.getClass().getSimpleName() + " with " + run;
+
+				assertEquals(List.of(Locale.ENGLISH, Locale.FRENCH), languagesOf(tags), "Languages for " + context);
+				assertEquals(text, String.join(" ", tags.stream().map(Pair::first).toList()),
+						"Text not preserved for " + context);
+			}
+		}
+	}
+
 	// the nested detector shares the window and segment rules: its output on the
-	// six phrases is the same as before them (it misses the German phrase)
+	// six phrases is the same as before them (it misses the German phrase), and
+	// digit runs inside one language stay in that language's segment
 	@Test
 	void testNestedDetector() throws Exception {
 
@@ -113,8 +138,16 @@ class MultiLangTest {
 
 		assertEquals(List.of(Locale.ENGLISH, Locale.FRENCH, Locale.ITALIAN, Locale.of("es"), Locale.of("pt")),
 				languagesOf(boundaryDetector.tagStringWithLanguages(sixPhrases())), "Didn't match languages");
-		assertEquals(List.of(new Pair<>(NEUTRAL_RUN_IN_ENGLISH, Locale.ENGLISH)),
-				boundaryDetector.tagStringWithLanguages(NEUTRAL_RUN_IN_ENGLISH), "Neutral run split the segment");
+
+		List<Pair<String, Locale>> expectedSegments = List.of(
+				new Pair<>("Please call me at 555 0100 1234 5678 tomorrow morning about the invoice", Locale.ENGLISH),
+				new Pair<>("y doy 1 2 3 4 fe que habiendo visto", Locale.of("es")),
+				new Pair<>("un navire parfaitement gouverné son ancre 1 2 3 4", Locale.FRENCH),
+				new Pair<>("1234 5678 9012 3456 7890", LanguageDetector.UNDETERMINED));
+		for (Pair<String, Locale> expected : expectedSegments) {
+			assertEquals(List.of(expected), boundaryDetector.tagStringWithLanguages(expected.first()),
+					"Neutral run changed the segmentation");
+		}
 	}
 
 	// the base bigram detector used to throw on single-word input

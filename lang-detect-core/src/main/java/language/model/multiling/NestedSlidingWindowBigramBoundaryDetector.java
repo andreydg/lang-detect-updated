@@ -114,8 +114,10 @@ public class NestedSlidingWindowBigramBoundaryDetector extends BigramBoundaryDet
 	}
 
 	private int getBreakingPoint(String s) throws IOException {
+		// the boundary is read from where the first segment ends, so the smaller
+		// detector returns raw segments: digits and punctuation aren't merged away
 		LanguageBoundaryDetector smallerDetector = new SlidingWindowBigramBoundaryDetector(
-				this.algorithmToUse, this.detector, NESTED_WINDOW);
+				this.algorithmToUse, this.detector, NESTED_WINDOW, true);
 		List<Pair<String, Locale>> retVal = smallerDetector.tagStringWithLanguages(s);
 		// hopefully there was exactly one split - otherwise we'll take the
 		// first one

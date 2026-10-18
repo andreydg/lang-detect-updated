@@ -40,9 +40,25 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 	@GuardedBy("BC")
 	protected static volatile Map<String, Integer> BIGRAM_COUNTS;
 
+	// raw segments are for callers that read boundaries from where segments end:
+	// digits-only text keeps the English default it always had and isn't merged
+	private final boolean rawSegments;
+
 	public BigramBoundaryDetector(ClassificationAlgorithm algorithmToUse, NgramLanguageDetector detector)
 			throws IOException {
+		this(algorithmToUse, detector, false);
+	}
+
+	/**
+	 * @param rawSegments
+	 *            - true to leave digits-and-punctuation segments unmerged and
+	 *            labeled English, as before, for callers that read boundaries
+	 *            from where segments end
+	 */
+	protected BigramBoundaryDetector(ClassificationAlgorithm algorithmToUse, NgramLanguageDetector detector,
+			boolean rawSegments) throws IOException {
 		super(algorithmToUse, detector);
+		this.rawSegments = rawSegments;
 		lazyInitBigramCounts();
 
 	}
@@ -177,11 +193,16 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 	 */
 	protected Pair<String, Locale> appendSegment(List<Pair<String, Locale>> segments, String text)
 			throws IOException {
-		Pair<String, Locale> segment = new Pair<>(text, getLanguageWithDefault(text));
+		Locale detected = getLanguageWithDefault(text);
+		if (rawSegments && isLanguageNeutral(text)) {
+			detected = Locale.ENGLISH;
+		}
+		Pair<String, Locale> segment = new Pair<>(text, detected);
 		if (!segments.isEmpty()) {
 			Pair<String, Locale> previous = segments.get(segments.size() - 1);
-			boolean previousNeutral = isLanguageNeutral(previous.first());
-			if (previousNeutral || isLanguageNeutral(text) || previous.second().equals(segment.second())) {
+			boolean previousNeutral = !rawSegments && isLanguageNeutral(previous.first());
+			boolean neutral = !rawSegments && isLanguageNeutral(text);
+			if (previousNeutral || neutral || previous.second().equals(segment.second())) {
 				Locale language = previousNeutral ? segment.second() : previous.second();
 				segment = new Pair<>(LanguageUtil.joinWithSpace(previous.first(), text), language);
 				segments.remove(segments.size() - 1);

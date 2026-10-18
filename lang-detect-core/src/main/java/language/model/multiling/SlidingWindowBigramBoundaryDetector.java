@@ -45,7 +45,12 @@ public class SlidingWindowBigramBoundaryDetector extends BigramBoundaryDetector 
 
 	public SlidingWindowBigramBoundaryDetector(ClassificationAlgorithm algorithmToUse,
 			NgramLanguageDetector detector, int windowSize) throws IOException {
-		super(algorithmToUse, detector);
+		this(algorithmToUse, detector, windowSize, false);
+	}
+
+	SlidingWindowBigramBoundaryDetector(ClassificationAlgorithm algorithmToUse, NgramLanguageDetector detector,
+			int windowSize, boolean rawSegments) throws IOException {
+		super(algorithmToUse, detector, rawSegments);
 		int[] orderPreference = PREFERENCE_ORDER.get(windowSize);
 		if (orderPreference == null) {
 			throw new IllegalArgumentException("Unsupported window size: " + windowSize);
