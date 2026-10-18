@@ -18,9 +18,11 @@ import java.util.Locale;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.andreyg.langdetect.DetectionProperties;
 
@@ -173,6 +175,19 @@ class DetectControllerTest {
         .andExpect(status().isUnsupportedMediaType())
         .andExpect(header().exists("Accept"))
         .andExpect(jsonPath("$.error").value(containsString("not supported")));
+  }
+
+  @Test
+  void exceptionWithItsOwnStatusKeepsIt() throws Exception {
+    when(detector.getMostLikelyLanguage(anyString()))
+        .thenThrow(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Models still loading"));
+
+    mvc.perform(
+            post("/api/detect")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(VALID_TEXT, "single")))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(jsonPath("$.error").value("Models still loading"));
   }
 
   @Test

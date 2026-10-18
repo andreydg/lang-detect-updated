@@ -28,18 +28,22 @@ public class GlobalExceptionHandler {
   }
 
   /**
-   * Anything else. Spring MVC's own client errors (e.g. 415 for a non-JSON body)
-   * keep their status, headers and message; everything else is a server fault:
-   * log the detail server-side, return a generic message.
+   * Anything else. Exceptions that carry their own HTTP status (Spring MVC's
+   * {@link ErrorResponse}s, e.g. 415 for a non-JSON body) keep their status,
+   * headers and message; only server-side ones are logged as errors. Everything
+   * else is a server fault: log the detail server-side, return a generic message.
    */
   @ExceptionHandler(Exception.class)
   public ResponseEntity<DetectResponse> handleGeneric(Exception ex) {
-    if (ex instanceof ErrorResponse clientError) {
-      log.debug("Rejected /api request: {}", ex.getMessage());
-      String detail =
-          Objects.requireNonNullElse(clientError.getBody().getDetail(), "Request rejected");
-      return ResponseEntity.status(clientError.getStatusCode())
-          .headers(clientError.getHeaders())
+    if (ex instanceof ErrorResponse response) {
+      if (response.getStatusCode().is5xxServerError()) {
+        log.error("Server error serving /api request", ex);
+      } else {
+        log.debug("Rejected /api request: {}", ex.getMessage());
+      }
+      String detail = Objects.requireNonNullElse(response.getBody().getDetail(), "Request rejected");
+      return ResponseEntity.status(response.getStatusCode())
+          .headers(response.getHeaders())
           .body(new DetectResponse(null, null, null, null, detail));
     }
     log.error("Unhandled exception serving /api request", ex);
