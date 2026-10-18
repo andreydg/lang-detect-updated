@@ -41,7 +41,8 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 	protected static volatile Map<String, Integer> BIGRAM_COUNTS;
 
 	// raw segments are for callers that read boundaries from where segments end:
-	// digits-only text keeps the English default it always had and isn't merged
+	// digits-only text isn't merged, and where the detector finds no language it
+	// keeps the English default it always had
 	private final boolean rawSegments;
 
 	public BigramBoundaryDetector(ClassificationAlgorithm algorithmToUse, NgramLanguageDetector detector)
@@ -51,9 +52,9 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 
 	/**
 	 * @param rawSegments
-	 *            - true to leave digits-and-punctuation segments unmerged and
-	 *            labeled English, as before, for callers that read boundaries
-	 *            from where segments end
+	 *            - true to leave digits-and-punctuation segments unmerged and,
+	 *            where the detector finds no language, labeled English as
+	 *            before, for callers that read boundaries from where segments end
 	 */
 	protected BigramBoundaryDetector(ClassificationAlgorithm algorithmToUse, NgramLanguageDetector detector,
 			boolean rawSegments) throws IOException {
@@ -194,7 +195,7 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 	protected Pair<String, Locale> appendSegment(List<Pair<String, Locale>> segments, String text)
 			throws IOException {
 		Locale detected = getLanguageWithDefault(text);
-		if (rawSegments && isLanguageNeutral(text)) {
+		if (rawSegments && isLanguageNeutral(text) && LanguageDetector.UNDETERMINED.equals(detected)) {
 			detected = Locale.ENGLISH;
 		}
 		Pair<String, Locale> segment = new Pair<>(text, detected);
