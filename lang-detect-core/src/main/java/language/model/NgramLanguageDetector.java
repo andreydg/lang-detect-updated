@@ -393,7 +393,8 @@ public class NgramLanguageDetector implements LanguageDetector {
 	 * @param classifiers
 	 *            - the map of one vs. many classifier which will be used for
 	 *            classification
-	 * @return Locale of most likely language
+	 * @return Locale of most likely language, or null if no classifier produced
+	 *         a score (e.g. NaN)
 	 * @throws IOException
 	 */
 	protected final Locale detectLanguageClassifier(String text,
@@ -402,28 +403,16 @@ public class NgramLanguageDetector implements LanguageDetector {
 		// populate example with feature values
 		LanguageDocumentExample example = getExample(text, addLinearWeightFeature, null);
 
-		// now pick highest classifier
+		// pick the highest score; scores may be negative (log-odds), and ties go to
+		// the first locale in LOCALES order so the same text always gets the same answer
 		Locale predictedLocale = null;
-		double highestConfidence = 0;
-
-		List<Locale> sameConfidenceLocale = new ArrayList<>();
+		double highestScore = Double.NEGATIVE_INFINITY;
 		for (Locale locale : LOCALES) {
-
-			double confidenceLevel = classifiers.get(locale).getConfidenceLevel(example);
-			if (confidenceLevel > highestConfidence) {
-				highestConfidence = confidenceLevel;
+			double score = classifiers.get(locale).getScore(example);
+			if (score > highestScore) {
+				highestScore = score;
 				predictedLocale = locale;
-				sameConfidenceLocale.clear();
-				sameConfidenceLocale.add(locale);
-			} else if (Double.compare(confidenceLevel, highestConfidence) == 0) {
-				sameConfidenceLocale.add(locale);
-				predictedLocale = null;
 			}
-		}
-
-		// we have matching highestConfidences return random one
-		if (predictedLocale == null) {
-			return sameConfidenceLocale.get(rnd.nextInt(sameConfidenceLocale.size()));
 		}
 		return predictedLocale;
 	}

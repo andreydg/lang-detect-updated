@@ -71,8 +71,6 @@ java -jar lang-detect-web/target/lang-detect-web-1.0.0-SNAPSHOT.jar
 
 ### Tests
 
-`LogisticRegressionSingleLangTest` is excluded from the default Maven test run because logistic-regression scores are numerically sensitive on modern JDKs; other tests still run.
-
 Override test data location:
 
 ```bash
