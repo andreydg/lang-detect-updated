@@ -45,6 +45,16 @@ public class LogisticRegressionClassifier<K, Z extends ClassifierExample<Double,
 		return logisticValue;
 	}
 
+	/**
+	 * The log-odds before the sigmoid. With weights this large the sigmoid is
+	 * exactly 0.0 or 1.0 for most inputs, so comparing confidences across
+	 * classifiers would mostly produce ties.
+	 */
+	@Override
+	public double getScore(Z example) {
+		return getSumGivenWeights(example.getFeatureValues(positiveLabel));
+	}
+
 	public void train(List<Z> trainingData) {
 		for (int ind = 0; ind < numFeatures; ind++) {
 			// set all to one

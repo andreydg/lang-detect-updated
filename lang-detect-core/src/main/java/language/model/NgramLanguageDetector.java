@@ -393,7 +393,8 @@ public class NgramLanguageDetector implements LanguageDetector {
 	 * @param classifiers
 	 *            - the map of one vs. many classifier which will be used for
 	 *            classification
-	 * @return Locale of most likely language
+	 * @return Locale of most likely language, or null if no classifier produced
+	 *         a score (e.g. NaN)
 	 * @throws IOException
 	 */
 	protected final Locale detectLanguageClassifier(String text,
@@ -402,30 +403,25 @@ public class NgramLanguageDetector implements LanguageDetector {
 		// populate example with feature values
 		LanguageDocumentExample example = getExample(text, addLinearWeightFeature, null);
 
-		// now pick highest classifier
-		Locale predictedLocale = null;
-		double highestConfidence = 0;
-
-		List<Locale> sameConfidenceLocale = new ArrayList<>();
+		// pick the highest score; scores may be negative (log-odds), and NaN never wins
+		double highestScore = Double.NEGATIVE_INFINITY;
+		List<Locale> sameScoreLocales = new ArrayList<>();
 		for (Locale locale : LOCALES) {
-
-			double confidenceLevel = classifiers.get(locale).getConfidenceLevel(example);
-			if (confidenceLevel > highestConfidence) {
-				highestConfidence = confidenceLevel;
-				predictedLocale = locale;
-				sameConfidenceLocale.clear();
-				sameConfidenceLocale.add(locale);
-			} else if (Double.compare(confidenceLevel, highestConfidence) == 0) {
-				sameConfidenceLocale.add(locale);
-				predictedLocale = null;
+			double score = classifiers.get(locale).getScore(example);
+			if (score > highestScore) {
+				highestScore = score;
+				sameScoreLocales.clear();
+				sameScoreLocales.add(locale);
+			} else if (score == highestScore) {
+				sameScoreLocales.add(locale);
 			}
 		}
 
-		// we have matching highestConfidences return random one
-		if (predictedLocale == null) {
-			return sameConfidenceLocale.get(rnd.nextInt(sameConfidenceLocale.size()));
+		if (sameScoreLocales.isEmpty()) {
+			return null;
 		}
-		return predictedLocale;
+		// we have matching highest scores return random one
+		return sameScoreLocales.get(sameScoreLocales.size() == 1 ? 0 : rnd.nextInt(sameScoreLocales.size()));
 	}
 
 	/**

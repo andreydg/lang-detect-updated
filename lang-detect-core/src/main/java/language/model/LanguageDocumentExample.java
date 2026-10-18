@@ -71,6 +71,14 @@ public class LanguageDocumentExample implements DecisionTreeExample<Double, Loca
 		return value;
 	}
 
+	/**
+	 * All feature values, whatever {@code positiveLabel} is: for each feature (in
+	 * {@link NgramLanguageModelFeature} order) one value per locale in
+	 * {@link NgramLanguageDetector#getLocales()} order, 0.0 where missing.
+	 * Persisted logistic-regression weights are positional, so this order must
+	 * never depend on map iteration order (it used to follow {@code HashMap}
+	 * order, which changed between JDK 7 and 8).
+	 */
 	public List<Double> getFeatureValues(Locale positiveLabel) {
 
 		// we will actually use feature values not just for particular locale
@@ -84,11 +92,9 @@ public class LanguageDocumentExample implements DecisionTreeExample<Double, Loca
 				List<Double> tempList = new ArrayList<>();
 
 				for (Map<Locale, Double> valueMap : this.featureValues.values()) {
-					for (Double value : valueMap.values()) {
-						if (value == null) {
-							value = 0.0;
-						}
-						tempList.add(value);
+					for (Locale locale : NgramLanguageDetector.getLocales()) {
+						Double value = valueMap.get(locale);
+						tempList.add(value == null ? 0.0 : value);
 					}
 				}
 				allFeatureValues = Collections.<Double> unmodifiableList(tempList);

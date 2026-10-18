@@ -30,6 +30,16 @@ public interface Classifier<T extends Comparable<T>, K, Z extends ClassifierExam
 	double getConfidenceLevel(Z example);
 
 	/**
+	 * Score used to rank this classifier against others when picking a label.
+	 * Defaults to {@link #getConfidenceLevel}; a classifier whose confidence
+	 * saturates (a sigmoid stuck at 0 or 1) should return an unsquashed score so
+	 * that rankings don't collapse into ties.
+	 */
+	default double getScore(Z example) {
+		return getConfidenceLevel(example);
+	}
+
+	/**
 	 * writes classifier to DataOutput
 	 */
 	void write(DataOutput output) throws IOException;

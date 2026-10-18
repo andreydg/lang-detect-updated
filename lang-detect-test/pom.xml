@@ -14,21 +14,6 @@
   <packaging>jar</packaging>
   <name>lang-detect-test</name>
 
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <!-- Logistic regression training is numerically sensitive on JDK 17+ vs older JDKs. -->
-          <excludes>
-            <exclude>**/LogisticRegressionSingleLangTest.java</exclude>
-          </excludes>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
-
   <dependencies>
     <dependency>
       <groupId>com.andreyg.langdetect</groupId>
