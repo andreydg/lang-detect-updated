@@ -94,6 +94,20 @@ npm test
 
 Both the Maven and UI test suites run in CI (`.github/workflows/ci.yml`).
 
+### Accuracy
+
+`ProductionAccuracyTest` runs the production algorithm (`LINEAR_WEIGHTS`) on all 148,741 held-out lines in `languagemodels/trainingAndTestSet/*_test` (about 28 characters each) and writes `lang-detect-test/target/accuracy-report.md`, with per-language accuracy, a confusion matrix and accuracy by text length. CI shows the report on each run's summary page.
+
+The test fails if overall or per-language accuracy drops more than the configured tolerance below `lang-detect-test/src/test/resources/accuracy-baseline.properties`. When a change improves accuracy, raise the baseline in the same change.
+
+Current baseline: 93.42% overall; German 97.82%, English 96.57%, French 93.58%, Italian 92.89%, Portuguese 91.13%, Spanish 88.53%.
+
+To run only this test:
+
+```bash
+./mvnw -pl lang-detect-test -am test -Dtest=ProductionAccuracyTest -Dsurefire.failIfNoSpecifiedTests=false
+```
+
 ## Data directory
 
 Training and n-gram assets live under **`lang-detect/war/languagemodels/`** (historical path; only this tree remains under `lang-detect/`). The Maven web module copies `languagemodels/**` at build time.

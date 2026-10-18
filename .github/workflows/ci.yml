@@ -31,8 +31,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: surefire-reports
-          path: '**/target/surefire-reports/*'
+          path: |
+            **/target/surefire-reports/*
+            lang-detect-test/target/accuracy-report.md
           if-no-files-found: ignore
+
+      - name: Publish accuracy report
+        if: always()
+        run: |
+          report=lang-detect-test/target/accuracy-report.md
+          if [ -f "$report" ]; then cat "$report" >> "$GITHUB_STEP_SUMMARY"; fi
 
   ui:
     name: UI tests (Node)
