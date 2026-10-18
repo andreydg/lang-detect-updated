@@ -94,11 +94,13 @@ npm test
 
 Both the Maven and UI test suites run in CI (`.github/workflows/ci.yml`).
 
-### Accuracy
+### Accuracy regression benchmark
 
-`ProductionAccuracyTest` runs the production algorithm (`LINEAR_WEIGHTS`) on all 148,741 held-out lines in `languagemodels/trainingAndTestSet/*_test` (about 28 characters each) and writes `lang-detect-test/target/accuracy-report.md`, with per-language accuracy, a confusion matrix and accuracy by text length. CI shows the report on each run's summary page.
+`ProductionAccuracyTest` runs the production algorithm (`LINEAR_WEIGHTS`) on all 148,741 lines of the existing test split, `languagemodels/trainingAndTestSet/*_test` (about 28 characters each), and writes `lang-detect-test/target/accuracy-report.md` with per-language accuracy, a confusion matrix and accuracy by text length. CI shows the report on each run's summary page.
 
-The test fails if overall or per-language accuracy drops more than the configured tolerance below `lang-detect-test/src/test/resources/accuracy-baseline.properties`. When a change improves accuracy, raise the baseline in the same change.
+The test lines are cut from the same source texts (`modelSource`) the n-gram models were built from, so this is a regression benchmark on known text, not an estimate of accuracy on new text. An independent estimate would need source documents set aside before the models are built, with a baseline of its own.
+
+The test fails if overall or per-language accuracy drops more than 0.10 percentage points below `lang-detect-test/src/test/resources/accuracy-baseline.properties`. When a change improves accuracy, raise the baseline in the same change.
 
 Current baseline: 93.42% overall; German 97.82%, English 96.57%, French 93.58%, Italian 92.89%, Portuguese 91.13%, Spanish 88.53%.
 

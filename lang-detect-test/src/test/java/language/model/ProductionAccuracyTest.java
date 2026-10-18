@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -20,9 +19,11 @@ import org.slf4j.LoggerFactory;
 import language.model.NgramLanguageDetector.ClassificationAlgorithm;
 
 /**
- * Accuracy of the algorithm the web app uses, on the full held-out test set,
- * checked against {@code accuracy-baseline.properties}. Writes
- * {@code target/accuracy-report.md}, which CI shows on the run's summary page.
+ * Regression benchmark for the algorithm the web app uses: accuracy on the full
+ * existing test split, checked against {@code accuracy-baseline.properties}.
+ * Writes {@code target/accuracy-report.md}, which CI shows on the run's summary
+ * page. The test lines come from the same source texts as the n-gram models, so
+ * the numbers track regressions; they don't estimate accuracy on new text.
  *
  * @author Andrey Gusev
  */
@@ -49,30 +50,21 @@ class ProductionAccuracyTest {
 		}
 		double tolerance = Double.parseDouble(props.getProperty("tolerance"));
 		Map<String, Double> baseline = new LinkedHashMap<>();
-		Map<String, Double> measured = new LinkedHashMap<>();
 		baseline.put("overall", Double.parseDouble(props.getProperty("overall")));
-		measured.put("overall", report.accuracy());
 		for (Locale locale : NgramLanguageDetector.getLocales()) {
 			baseline.put(locale.toString(), Double.parseDouble(props.getProperty(locale.toString())));
-			measured.put(locale.toString(), report.accuracy(locale));
 		}
 
 		Files.createDirectories(REPORT.getParent());
 		Files.writeString(REPORT, report.toMarkdown(baseline), StandardCharsets.UTF_8);
-		log.info("{} accuracy on {} held-out lines: {}% (report: {})", PRODUCTION, report.lines(),
+		log.info("{} accuracy on {} test-split lines: {}% (report: {})", PRODUCTION, report.lines(),
 				String.format(Locale.ROOT, "%.2f", report.accuracy()), REPORT.toAbsolutePath());
 
-		List<String> regressions = new ArrayList<>();
-		for (Map.Entry<String, Double> expected : baseline.entrySet()) {
-			double now = measured.get(expected.getKey());
-			if (now < expected.getValue() - tolerance) {
-				regressions.add(String.format(Locale.ROOT, "%s %.2f%% < %.2f%%", expected.getKey(), now,
-						expected.getValue()));
-			} else if (now > expected.getValue() + tolerance) {
-				log.info("{} accuracy rose to {}% (baseline {}%): raise it in accuracy-baseline.properties",
-						expected.getKey(), String.format(Locale.ROOT, "%.2f", now), expected.getValue());
-			}
+		List<String> improvements = AccuracyReport.improvements(report.accuracies(), baseline, tolerance);
+		if (!improvements.isEmpty()) {
+			log.info("Accuracy rose above the baseline: {}; raise it in accuracy-baseline.properties", improvements);
 		}
+		List<String> regressions = AccuracyReport.regressions(report.accuracies(), baseline, tolerance);
 		assertTrue(regressions.isEmpty(), "Accuracy fell below the baseline: " + regressions);
 	}
 }
