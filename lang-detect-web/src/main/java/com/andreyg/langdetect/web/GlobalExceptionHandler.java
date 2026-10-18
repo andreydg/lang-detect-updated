@@ -1,10 +1,13 @@
 package com.andreyg.langdetect.web;
 
+import java.util.Objects;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -24,9 +27,21 @@ public class GlobalExceptionHandler {
         .body(new DetectResponse(null, null, null, null, "Malformed JSON request"));
   }
 
-  /** Anything else: log the detail server-side, return a generic message. */
+  /**
+   * Anything else. Spring MVC's own client errors (e.g. 415 for a non-JSON body)
+   * keep their status, headers and message; everything else is a server fault:
+   * log the detail server-side, return a generic message.
+   */
   @ExceptionHandler(Exception.class)
   public ResponseEntity<DetectResponse> handleGeneric(Exception ex) {
+    if (ex instanceof ErrorResponse clientError) {
+      log.debug("Rejected /api request: {}", ex.getMessage());
+      String detail =
+          Objects.requireNonNullElse(clientError.getBody().getDetail(), "Request rejected");
+      return ResponseEntity.status(clientError.getStatusCode())
+          .headers(clientError.getHeaders())
+          .body(new DetectResponse(null, null, null, null, detail));
+    }
     log.error("Unhandled exception serving /api request", ex);
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
         .body(new DetectResponse(null, null, null, null, "Internal server error"));

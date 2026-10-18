@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.andreyg.langdetect.DetectionProperties;
 
+import language.model.LanguageDetector;
 import language.util.Pair;
 
 @RestController
@@ -87,7 +88,7 @@ public class DetectController {
                     p -> {
                       Locale loc = p.second();
                       return new DetectResponse.Segment(
-                          p.first(), loc.getDisplayLanguage(), loc.toLanguageTag());
+                          p.first(), displayName(loc), loc.toLanguageTag());
                     })
                 .toList();
         return ResponseEntity.ok(new DetectResponse(mode, null, null, segments, null));
@@ -95,11 +96,15 @@ public class DetectController {
 
       Locale lang = service.detectSingle(text);
       return ResponseEntity.ok(
-          new DetectResponse(
-              mode, lang.getDisplayLanguage(), lang.toLanguageTag(), null, null));
+          new DetectResponse(mode, displayName(lang), lang.toLanguageTag(), null, null));
     } catch (IOException e) {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(new DetectResponse(null, null, null, null, "Detection failed: " + e.getMessage()));
     }
+  }
+
+  /** {@link LanguageDetector#UNDETERMINED} has no display name of its own. */
+  private static String displayName(Locale locale) {
+    return LanguageDetector.UNDETERMINED.equals(locale) ? "Unknown" : locale.getDisplayLanguage();
   }
 }

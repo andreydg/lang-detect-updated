@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import com.andreyg.langdetect.DetectionProperties;
 
+import language.model.LanguageDetector;
 import language.model.NgramLanguageDetector;
 import language.model.multiling.LanguageBoundaryDetector;
 import language.util.Pair;
@@ -55,7 +57,11 @@ public class DetectionService {
         });
   }
 
-  /** Detects the single most likely language for {@code text}. */
+  /**
+   * Detects the single most likely language for {@code text}, or
+   * {@link LanguageDetector#UNDETERMINED} when it matches none of the supported
+   * languages.
+   */
   public Locale detectSingle(String text) throws IOException {
     boolean cacheable = isCacheable(text);
     if (cacheable) {
@@ -65,14 +71,12 @@ public class DetectionService {
         return hit;
       }
     }
-    Locale result = detector.getMostLikelyLanguage(text);
-    if (cacheable && result != null) {
+    Locale result =
+        Objects.requireNonNullElse(detector.getMostLikelyLanguage(text), LanguageDetector.UNDETERMINED);
+    if (cacheable) {
       singleCache.put(text, result);
     }
-    log.info(
-        "detect mode=single len={} cache=miss -> {}",
-        text.length(),
-        result == null ? "null" : result.toLanguageTag());
+    log.info("detect mode=single len={} cache=miss -> {}", text.length(), result.toLanguageTag());
     return result;
   }
 

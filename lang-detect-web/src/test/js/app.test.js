@@ -59,6 +59,13 @@ describe("resultHtml", () => {
     expect(html).toContain("en");
   });
 
+  test("explains an undetermined result instead of showing the und tag", () => {
+    const html = resultHtml({ mode: "single", language: "Unknown", languageTag: "und" });
+    expect(html).toContain("Unknown");
+    expect(html).toContain("Matches none of the supported languages");
+    expect(html).not.toContain(">und<");
+  });
+
   test("renders multi-language segments and escapes user text", () => {
     const html = resultHtml({
       mode: "multi",

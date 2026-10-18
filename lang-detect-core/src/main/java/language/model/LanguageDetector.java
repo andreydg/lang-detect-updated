@@ -15,9 +15,17 @@ import language.model.NgramLanguageDetector.ClassificationAlgorithm;
 public interface LanguageDetector {
 
 	/**
+	 * Stands in for a language when text matches none of the supported ones
+	 * (another script, or only digits and punctuation). {@link Locale#ROOT}
+	 * has the BCP 47 tag {@code "und"} (undetermined).
+	 */
+	Locale UNDETERMINED = Locale.ROOT;
+
+	/**
 	 * @param text
 	 *            - text for which we will detect language
-	 * @return most likely language with default algorithm
+	 * @return most likely language with default algorithm, or {@code null} when
+	 *         the text matches none of the supported languages
 	 */
 	Locale getMostLikelyLanguage(String text) throws IOException;
 	

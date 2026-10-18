@@ -18,6 +18,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import net.jcip.annotations.GuardedBy;
 import net.jcip.annotations.ThreadSafe;
 
+import language.model.LanguageDetector;
 import language.model.NgramLanguageDetector;
 import language.model.NgramLanguageDetector.ClassificationAlgorithm;
 import language.util.LanguageUtil;
@@ -170,10 +171,15 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 		}
 	}
 
+	/**
+	 * Detected language of {@code s}, or {@link LanguageDetector#UNDETERMINED}
+	 * when it matches none of the supported languages, so unsupported text gets
+	 * its own segment instead of being labeled with a guess.
+	 */
 	protected Locale getLanguageWithDefault(String s) throws IOException {
 		Locale retVal = detector.getMostLikelyLanguage(s, algorithmToUse);
 		if (retVal == null) {
-			return Locale.ENGLISH;
+			return LanguageDetector.UNDETERMINED;
 		} else {
 			return retVal;
 		}

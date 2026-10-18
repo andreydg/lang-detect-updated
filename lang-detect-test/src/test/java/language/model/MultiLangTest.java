@@ -19,6 +19,8 @@ import language.util.Pair;
  */
 class MultiLangTest {
 
+	private static final String RUSSIAN = "Это тестовая строка для определения языка текста.";
+
 	// only checks the order, doesn't check the boundaries
 	@Test
 	void testMultiLangOrder() throws Exception {
@@ -44,6 +46,41 @@ class MultiLangTest {
 		assertEquals(Locale.of("es"), tags.get(4).second(), "Didn't match language");
 		assertEquals(Locale.of("pt"), tags.get(5).second(), "Didn't match language");
 
+	}
+
+	// text in none of the supported languages is tagged as undetermined, not guessed
+	@Test
+	void testUnsupportedTextIsUndetermined() throws Exception {
+
+		LanguageBoundaryDetector boundaryDetector = new SlidingWindowBigramBoundaryDetector(
+				ClassificationAlgorithm.LINEAR_WEIGHTS, NgramLanguageDetectorForTests.get(), 4);
+
+		List<Pair<String, Locale>> tags = boundaryDetector.tagStringWithLanguages(RUSSIAN);
+
+		assertEquals(1, tags.size(), "Should have returned 1 phrase");
+		assertEquals(LanguageDetector.UNDETERMINED, tags.get(0).second(), "Didn't match language");
+	}
+
+	// unsupported text next to a supported language becomes its own segment
+	// (only the order is checked, not the exact boundary)
+	@Test
+	void testUnsupportedTextGetsItsOwnSegment() throws Exception {
+
+		LanguageBoundaryDetector boundaryDetector = new SlidingWindowBigramBoundaryDetector(
+				ClassificationAlgorithm.LINEAR_WEIGHTS, NgramLanguageDetectorForTests.get(), 4);
+
+		List<Pair<String, Locale>> tags = boundaryDetector
+				.tagStringWithLanguages(BaseSingleLangTest.getEnglishString() + ". " + RUSSIAN);
+		assertEquals(List.of(Locale.ENGLISH, LanguageDetector.UNDETERMINED), languagesOf(tags),
+				"Didn't match languages");
+
+		tags = boundaryDetector.tagStringWithLanguages(RUSSIAN + " " + BaseSingleLangTest.getFrenchString());
+		assertEquals(List.of(LanguageDetector.UNDETERMINED, Locale.FRENCH), languagesOf(tags),
+				"Didn't match languages");
+	}
+
+	private static List<Locale> languagesOf(List<Pair<String, Locale>> tags) {
+		return tags.stream().map(Pair::second).toList();
 	}
 
 	// for larger string only checks the order, doesn't check the boundaries

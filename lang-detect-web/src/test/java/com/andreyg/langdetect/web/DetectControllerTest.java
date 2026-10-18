@@ -1,5 +1,6 @@
 package com.andreyg.langdetect.web;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -7,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -22,6 +24,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.andreyg.langdetect.DetectionProperties;
 
+import language.model.LanguageDetector;
 import language.model.NgramLanguageDetector;
 import language.model.multiling.LanguageBoundaryDetector;
 import language.util.Pair;
@@ -114,6 +117,69 @@ class DetectControllerTest {
         .andExpect(jsonPath("$.segments[0].text").value("Hello there"))
         .andExpect(jsonPath("$.segments[0].languageTag").value("en"))
         .andExpect(jsonPath("$.segments[1].languageTag").value("fr"));
+  }
+
+  @Test
+  void textInNoSupportedLanguageIsUndetermined() throws Exception {
+    // the core detector returns null when no supported language matches
+    when(detector.getMostLikelyLanguage(anyString())).thenReturn(null);
+
+    mvc.perform(
+            post("/api/detect")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(VALID_TEXT, "single")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.language").value("Unknown"))
+        .andExpect(jsonPath("$.languageTag").value("und"))
+        .andExpect(jsonPath("$.error").doesNotExist());
+  }
+
+  @Test
+  void undeterminedResultIsCached() throws Exception {
+    when(detector.getMostLikelyLanguage(anyString())).thenReturn(null);
+
+    for (int i = 0; i < 2; i++) {
+      mvc.perform(
+              post("/api/detect")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body(VALID_TEXT, "single")))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.languageTag").value("und"));
+    }
+    verify(detector, times(1)).getMostLikelyLanguage(anyString());
+  }
+
+  @Test
+  void multiModeLabelsUndeterminedSegments() throws Exception {
+    when(boundaryDetector.tagStringWithLanguages(anyString()))
+        .thenReturn(
+            List.of(
+                new Pair<>("Hello there", Locale.ENGLISH),
+                new Pair<>("Привет всем", LanguageDetector.UNDETERMINED)));
+
+    mvc.perform(
+            post("/api/detect")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(VALID_TEXT, "multi")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.segments[0].languageTag").value("en"))
+        .andExpect(jsonPath("$.segments[1].language").value("Unknown"))
+        .andExpect(jsonPath("$.segments[1].languageTag").value("und"));
+  }
+
+  @Test
+  void nonJsonBodyIsUnsupportedMediaType() throws Exception {
+    mvc.perform(post("/api/detect").contentType(MediaType.TEXT_PLAIN).content(VALID_TEXT))
+        .andExpect(status().isUnsupportedMediaType())
+        .andExpect(header().exists("Accept"))
+        .andExpect(jsonPath("$.error").value(containsString("not supported")));
+  }
+
+  @Test
+  void missingContentTypeIsUnsupportedMediaType() throws Exception {
+    mvc.perform(post("/api/detect").content(body(VALID_TEXT, "single")))
+        .andExpect(status().isUnsupportedMediaType())
+        .andExpect(jsonPath("$.error").value(containsString("not supported")));
   }
 
   @Test
