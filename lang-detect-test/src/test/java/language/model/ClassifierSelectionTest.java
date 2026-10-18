@@ -2,6 +2,7 @@ package language.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -9,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -62,11 +64,13 @@ class ClassifierSelectionTest {
 		assertEquals(Locale.GERMAN, pick(-9, -7, -8, -2, -5, -6), "Didn't pick the highest score");
 	}
 
-	// ties go to the first locale in LOCALES order, so answers are reproducible
+	// exact ties at the top are broken at random among the tied locales, as before
 	@Test
-	void testBreaksTiesInLocaleOrder() throws Exception {
-		for (int run = 0; run < 5; run++) {
-			assertEquals(Locale.FRENCH, pick(0.2, 1.0, 1.0, 0.3, 1.0, 0.1), "Tie not broken in LOCALES order");
+	void testBreaksTiesAmongTiedLocales() throws Exception {
+		Set<Locale> tied = Set.of(Locale.FRENCH, Locale.ITALIAN, Locale.of("es"));
+		for (int run = 0; run < 20; run++) {
+			Locale picked = pick(0.2, 1.0, 1.0, 0.3, 1.0, 0.1);
+			assertTrue(tied.contains(picked), "Picked " + picked + ", which isn't among the tied locales");
 		}
 	}
 

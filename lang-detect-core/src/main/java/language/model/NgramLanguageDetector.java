@@ -403,18 +403,25 @@ public class NgramLanguageDetector implements LanguageDetector {
 		// populate example with feature values
 		LanguageDocumentExample example = getExample(text, addLinearWeightFeature, null);
 
-		// pick the highest score; scores may be negative (log-odds), and ties go to
-		// the first locale in LOCALES order so the same text always gets the same answer
-		Locale predictedLocale = null;
+		// pick the highest score; scores may be negative (log-odds), and NaN never wins
 		double highestScore = Double.NEGATIVE_INFINITY;
+		List<Locale> sameScoreLocales = new ArrayList<>();
 		for (Locale locale : LOCALES) {
 			double score = classifiers.get(locale).getScore(example);
 			if (score > highestScore) {
 				highestScore = score;
-				predictedLocale = locale;
+				sameScoreLocales.clear();
+				sameScoreLocales.add(locale);
+			} else if (score == highestScore) {
+				sameScoreLocales.add(locale);
 			}
 		}
-		return predictedLocale;
+
+		if (sameScoreLocales.isEmpty()) {
+			return null;
+		}
+		// we have matching highest scores return random one
+		return sameScoreLocales.get(sameScoreLocales.size() == 1 ? 0 : rnd.nextInt(sameScoreLocales.size()));
 	}
 
 	/**

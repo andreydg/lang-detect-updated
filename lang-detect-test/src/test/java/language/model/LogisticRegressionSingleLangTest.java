@@ -39,9 +39,12 @@ class LogisticRegressionSingleLangTest extends BaseSingleLangTest {
 	}
 
 	// the persisted weights are positional: if the feature order drifts from the
-	// weight layout (as HashMap order did between JDK 7 and 8), accuracy collapses
+	// weight layout (as HashMap order did between JDK 7 and 8), accuracy collapses.
+	// The test split is held out from the classifier's training split, but most
+	// of its lines also occur in the corpus the n-gram models were built from,
+	// so this guards against regressions rather than estimating accuracy on new text.
 	@Test
-	void testHeldOutAccuracy() throws Exception {
+	void testTestSplitAccuracy() throws Exception {
 		NgramLanguageDetector detector = NgramLanguageDetectorForTests.get();
 		Path testSetDir = detector.getBasePath()
 				.resolve(NgramLanguageDetector.BASE_MODEL_DIR)
@@ -62,8 +65,8 @@ class LogisticRegressionSingleLangTest extends BaseSingleLangTest {
 		}
 
 		double accuracy = (double) correct / total;
-		log.info("Logistic classifier accuracy on {} held-out lines: {}", total, accuracy);
-		assertTrue(accuracy >= 0.90, "Accuracy on held-out lines was " + accuracy);
+		log.info("Logistic classifier accuracy on {} test-split lines: {}", total, accuracy);
+		assertTrue(accuracy >= 0.90, "Accuracy on test-split lines was " + accuracy);
 	}
 
 }
