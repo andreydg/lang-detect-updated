@@ -32,7 +32,7 @@ From the repository root:
 
 Then open `http://localhost:8080/`. The UI calls `POST /api/detect` with JSON `{ "text": "...", "mode": "single" | "multi" }`.
 
-Text in none of the supported languages (another script, or only digits and punctuation) comes back as `"language": "Unknown"` with the BCP 47 tag `"languageTag": "und"` (undetermined) instead of a guess. In multi mode, text in another script gets its own `und` segment, while digits and punctuation stay in the segment of the text around them. A request whose `Content-Type` isn't JSON gets `415 Unsupported Media Type`; malformed JSON gets `400 Bad Request`.
+Text in none of the supported languages (another script, or only digits and punctuation) comes back as `"language": "Unknown"` with the BCP 47 tag `"languageTag": "und"` (undetermined) instead of a guess. In multi mode, text in another script gets its own `und` segment, which starts and ends exactly where the script changes, even for a single word. Digits and punctuation stay in the segment of the text around them; where the script changes, they go with the text before the change. A request whose `Content-Type` isn't JSON gets `415 Unsupported Media Type`; malformed JSON gets `400 Bad Request`.
 
 Other endpoints:
 
