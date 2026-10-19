@@ -425,7 +425,7 @@ public class NgramLanguageDetectorWithUtils extends NgramLanguageDetector {
 		StringBuilder runOutput = new StringBuilder();
 		for (Pair<String, Locale> pair : languageTags) {
 			runOutput.append(pair.first()).append(MULTI_LING_SEPARATOR);
-			runOutput.append(pair.second()).append("\n");
+			runOutput.append(LanguageDetector.languageTag(pair.second())).append("\n");
 			Locale trueLocale = allLanguageStrings.get(pair.first());
 			if (trueLocale == null) {
 				incorrectlyFound++;

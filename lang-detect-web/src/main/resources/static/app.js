@@ -2,6 +2,9 @@
 // client stays in sync with the server's validation rules (single source: Java).
 const DEFAULTS = { min: 25, max: 100000 };
 
+// BCP 47 "undetermined": the API's tag for text in none of the supported languages.
+const UNDETERMINED_TAG = "und";
+
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for unit tests; no DOM access)
 // ---------------------------------------------------------------------------
@@ -58,9 +61,12 @@ export function resultHtml(data) {
     `;
   }
   if (data.language) {
-    const tag = data.languageTag
-      ? `<p class="lang-meta">${escapeHtml(data.languageTag)}</p>`
-      : "";
+    // "und" means nothing to the reader; say why there is no language instead
+    const meta =
+      data.languageTag === UNDETERMINED_TAG
+        ? "Matches none of the supported languages"
+        : data.languageTag;
+    const tag = meta ? `<p class="lang-meta">${escapeHtml(meta)}</p>` : "";
     return `
       <div class="lang-showcase">
         <p class="result-label">Most likely language</p>

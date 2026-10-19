@@ -8,7 +8,9 @@ import java.util.Locale;
 import org.junit.jupiter.api.Test;
 
 import language.model.NgramLanguageDetector.ClassificationAlgorithm;
+import language.model.multiling.BigramBoundaryDetector;
 import language.model.multiling.LanguageBoundaryDetector;
+import language.model.multiling.NestedSlidingWindowBigramBoundaryDetector;
 import language.model.multiling.SlidingWindowBigramBoundaryDetector;
 import language.util.Pair;
 
@@ -18,6 +20,16 @@ import language.util.Pair;
  * @author Andrey Gusev
  */
 class MultiLangTest {
+
+	private static final String RUSSIAN = "Это тестовая строка для определения языка текста.";
+
+	private static final String NEUTRAL_RUN_IN_ENGLISH =
+			"The invoice numbers are listed in the . . . . table below for your reference";
+
+	private static LanguageBoundaryDetector newBoundaryDetector() throws Exception {
+		return new SlidingWindowBigramBoundaryDetector(ClassificationAlgorithm.LINEAR_WEIGHTS,
+				NgramLanguageDetectorForTests.get(), 4);
+	}
 
 	// only checks the order, doesn't check the boundaries
 	@Test
@@ -44,6 +56,136 @@ class MultiLangTest {
 		assertEquals(Locale.of("es"), tags.get(4).second(), "Didn't match language");
 		assertEquals(Locale.of("pt"), tags.get(5).second(), "Didn't match language");
 
+	}
+
+	// text in none of the supported languages is tagged as undetermined, not guessed
+	@Test
+	void testUnsupportedTextIsUndetermined() throws Exception {
+
+		LanguageBoundaryDetector boundaryDetector = newBoundaryDetector();
+
+		for (String text : List.of(RUSSIAN, "1 2 3 4 " + RUSSIAN)) {
+			assertEquals(List.of(new Pair<>(text, LanguageDetector.UNDETERMINED)),
+					boundaryDetector.tagStringWithLanguages(text), "Should be one undetermined phrase");
+		}
+	}
+
+	// input of nothing but digits and punctuation is undetermined as well
+	@Test
+	void testNeutralInputIsUndetermined() throws Exception {
+
+		LanguageBoundaryDetector boundaryDetector = newBoundaryDetector();
+
+		for (String text : List.of("1234 5678 9012 3456 7890", ". . . . . . . .")) {
+			assertEquals(List.of(new Pair<>(text, LanguageDetector.UNDETERMINED)),
+					boundaryDetector.tagStringWithLanguages(text), "Should be one undetermined phrase");
+		}
+	}
+
+	// digits and punctuation have no language of their own, so they stay in the
+	// segment around them instead of splitting it
+	@Test
+	void testNeutralRunsStayInTheirSegment() throws Exception {
+
+		LanguageBoundaryDetector boundaryDetector = newBoundaryDetector();
+
+		List<Pair<String, Locale>> expectedSegments = List.of(
+				new Pair<>(NEUTRAL_RUN_IN_ENGLISH, Locale.ENGLISH),
+				new Pair<>("Please call me at 555 0100 1234 5678 tomorrow morning about the invoice", Locale.ENGLISH),
+				new Pair<>("1 2 3 4 This is a test string for language detection", Locale.ENGLISH),
+				// used to come out as Spanish / "English" 1 2 3 / Spanish
+				new Pair<>("y doy 1 2 3 4 fe que habiendo visto", Locale.of("es")),
+				// used to come out as French / "English" 1 2 3 4
+				new Pair<>("un navire parfaitement gouverné son ancre 1 2 3 4", Locale.FRENCH));
+		for (Pair<String, Locale> expected : expectedSegments) {
+			assertEquals(List.of(expected), boundaryDetector.tagStringWithLanguages(expected.first()),
+					"Neutral run changed the segmentation");
+		}
+	}
+
+	// a digits or punctuation run between two languages must not hide the boundary;
+	// the nested detector reads it from its smaller detector's raw segments
+	@Test
+	void testNeutralRunBetweenLanguages() throws Exception {
+
+		NgramLanguageDetector detector = NgramLanguageDetectorForTests.get();
+		List<LanguageBoundaryDetector> boundaryDetectors = List.of(
+				new SlidingWindowBigramBoundaryDetector(ClassificationAlgorithm.LINEAR_WEIGHTS, detector, 4),
+				new NestedSlidingWindowBigramBoundaryDetector(ClassificationAlgorithm.LINEAR_WEIGHTS, detector, 5));
+		String french = "Ceci est une phrase en français pour tester la détection de la langue";
+
+		for (LanguageBoundaryDetector boundaryDetector : boundaryDetectors) {
+			for (String run : List.of(". . . .", "1 2 3 4")) {
+				String text = BaseSingleLangTest.getEnglishString() + " " + run + " " + french;
+				List<Pair<String, Locale>> tags = boundaryDetector.tagStringWithLanguages(text);
+				String context = boundaryDetector.getClass().getSimpleName() + " with " + run;
+
+				assertEquals(List.of(Locale.ENGLISH, Locale.FRENCH), languagesOf(tags), "Languages for " + context);
+				assertEquals(text, String.join(" ", tags.stream().map(Pair::first).toList()),
+						"Text not preserved for " + context);
+			}
+		}
+	}
+
+	// the nested detector shares the window and segment rules: its output on the
+	// six phrases is the same as before them (it misses the German phrase), and
+	// digit runs inside one language stay in that language's segment
+	@Test
+	void testNestedDetector() throws Exception {
+
+		LanguageBoundaryDetector boundaryDetector = new NestedSlidingWindowBigramBoundaryDetector(
+				ClassificationAlgorithm.LINEAR_WEIGHTS, NgramLanguageDetectorForTests.get(), 5);
+
+		assertEquals(List.of(Locale.ENGLISH, Locale.FRENCH, Locale.ITALIAN, Locale.of("es"), Locale.of("pt")),
+				languagesOf(boundaryDetector.tagStringWithLanguages(sixPhrases())), "Didn't match languages");
+
+		List<Pair<String, Locale>> expectedSegments = List.of(
+				new Pair<>("Please call me at 555 0100 1234 5678 tomorrow morning about the invoice", Locale.ENGLISH),
+				new Pair<>("y doy 1 2 3 4 fe que habiendo visto", Locale.of("es")),
+				new Pair<>("un navire parfaitement gouverné son ancre 1 2 3 4", Locale.FRENCH),
+				new Pair<>("1234 5678 9012 3456 7890", LanguageDetector.UNDETERMINED));
+		for (Pair<String, Locale> expected : expectedSegments) {
+			assertEquals(List.of(expected), boundaryDetector.tagStringWithLanguages(expected.first()),
+					"Neutral run changed the segmentation");
+		}
+	}
+
+	// the base bigram detector used to throw on single-word input
+	@Test
+	void testBaseDetectorSingleWord() throws Exception {
+
+		LanguageBoundaryDetector boundaryDetector = new BigramBoundaryDetector(
+				ClassificationAlgorithm.LINEAR_WEIGHTS, NgramLanguageDetectorForTests.get());
+
+		assertEquals(List.of(new Pair<>("Bonjour", Locale.FRENCH)), boundaryDetector.tagStringWithLanguages("Bonjour"),
+				"Should be one phrase");
+	}
+
+	private static String sixPhrases() {
+		return BaseSingleLangTest.getEnglishString() + BaseSingleLangTest.getFrenchString()
+				+ BaseSingleLangTest.getItalianString() + BaseSingleLangTest.getGermanString()
+				+ BaseSingleLangTest.getSpanishString() + BaseSingleLangTest.getPortugueseString();
+	}
+
+	// unsupported text next to a supported language becomes its own segment
+	// (only the order is checked, not the exact boundary)
+	@Test
+	void testUnsupportedTextGetsItsOwnSegment() throws Exception {
+
+		LanguageBoundaryDetector boundaryDetector = newBoundaryDetector();
+
+		List<Pair<String, Locale>> tags = boundaryDetector
+				.tagStringWithLanguages(BaseSingleLangTest.getEnglishString() + ". " + RUSSIAN);
+		assertEquals(List.of(Locale.ENGLISH, LanguageDetector.UNDETERMINED), languagesOf(tags),
+				"Didn't match languages");
+
+		tags = boundaryDetector.tagStringWithLanguages(RUSSIAN + " " + BaseSingleLangTest.getFrenchString());
+		assertEquals(List.of(LanguageDetector.UNDETERMINED, Locale.FRENCH), languagesOf(tags),
+				"Didn't match languages");
+	}
+
+	private static List<Locale> languagesOf(List<Pair<String, Locale>> tags) {
+		return tags.stream().map(Pair::second).toList();
 	}
 
 	// for larger string only checks the order, doesn't check the boundaries

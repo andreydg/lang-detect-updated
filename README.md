@@ -32,6 +32,8 @@ From the repository root:
 
 Then open `http://localhost:8080/`. The UI calls `POST /api/detect` with JSON `{ "text": "...", "mode": "single" | "multi" }`.
 
+Text in none of the supported languages (another script, or only digits and punctuation) comes back as `"language": "Unknown"` with the BCP 47 tag `"languageTag": "und"` (undetermined) instead of a guess. In multi mode, text in another script gets its own `und` segment, while digits and punctuation stay in the segment of the text around them. A request whose `Content-Type` isn't JSON gets `415 Unsupported Media Type`; malformed JSON gets `400 Bad Request`.
+
 Other endpoints:
 
 * `GET /api/config` — returns the server-side validation limits (`{ "minLength", "maxLength" }`) so the UI stays in sync with the server.
