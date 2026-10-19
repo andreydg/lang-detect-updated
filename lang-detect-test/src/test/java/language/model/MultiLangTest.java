@@ -184,6 +184,134 @@ class MultiLangTest {
 				"Didn't match languages");
 	}
 
+	// text in another script is split off exactly where the script changes; the
+	// English text is segmented as it is on its own, where this detector also tags
+	// "sentence written in" as German (a separate issue)
+	@Test
+	void testOtherScriptIsSplitOffWhereTheScriptChanges() throws Exception {
+
+		LanguageBoundaryDetector boundaryDetector = newBoundaryDetector();
+
+		// used to put "языке." in the English segment
+		assertEquals(List.of(
+				new Pair<>("Это простой тест на русском языке.", LanguageDetector.UNDETERMINED),
+				new Pair<>("This is a simple", Locale.ENGLISH),
+				new Pair<>("sentence written in", Locale.GERMAN),
+				new Pair<>("English for testing.", Locale.ENGLISH)),
+				boundaryDetector.tagStringWithLanguages(
+						"Это простой тест на русском языке. This is a simple sentence written in English for testing."),
+				"Russian, then English");
+
+		// used to put "Это простой" in the English segment
+		assertEquals(List.of(
+				new Pair<>("This is a simple", Locale.ENGLISH),
+				new Pair<>("sentence written in", Locale.GERMAN),
+				new Pair<>("English for testing.", Locale.ENGLISH),
+				new Pair<>("Это простой тест на русском языке.", LanguageDetector.UNDETERMINED)),
+				boundaryDetector.tagStringWithLanguages(
+						"This is a simple sentence written in English for testing. Это простой тест на русском языке."),
+				"English, then Russian");
+
+		// a run shorter than the window used to be absorbed into the English segment
+		assertEquals(List.of(
+				new Pair<>("Привет мир.", LanguageDetector.UNDETERMINED),
+				new Pair<>("This is a simple", Locale.ENGLISH),
+				new Pair<>("sentence written in", Locale.GERMAN),
+				new Pair<>("English for testing.", Locale.ENGLISH)),
+				boundaryDetector.tagStringWithLanguages(
+						"Привет мир. This is a simple sentence written in English for testing."),
+				"Short Russian run, then English");
+	}
+
+	// the nested detector splits at the script change too; it used to absorb the
+	// Russian sentence after the English one completely
+	@Test
+	void testNestedDetectorSplitsOffOtherScript() throws Exception {
+
+		LanguageBoundaryDetector boundaryDetector = new NestedSlidingWindowBigramBoundaryDetector(
+				ClassificationAlgorithm.LINEAR_WEIGHTS, NgramLanguageDetectorForTests.get(), 5);
+		String english = "This is a simple sentence written in English for testing.";
+
+		assertEquals(List.of(
+				new Pair<>("Это простой тест на русском языке.", LanguageDetector.UNDETERMINED),
+				new Pair<>(english, Locale.ENGLISH)),
+				boundaryDetector.tagStringWithLanguages("Это простой тест на русском языке. " + english),
+				"Russian, then English");
+		assertEquals(List.of(
+				new Pair<>(english, Locale.ENGLISH),
+				new Pair<>("Это простой тест на русском языке.", LanguageDetector.UNDETERMINED)),
+				boundaryDetector.tagStringWithLanguages(english + " Это простой тест на русском языке."),
+				"English, then Russian");
+		assertEquals(List.of(
+				new Pair<>("Привет мир.", LanguageDetector.UNDETERMINED),
+				new Pair<>(english, Locale.ENGLISH)),
+				boundaryDetector.tagStringWithLanguages("Привет мир. " + english),
+				"Short Russian run, then English");
+	}
+
+	// one or two words in another script inside English get a segment of their own
+	@Test
+	void testShortOtherScriptRunInsideEnglish() throws Exception {
+
+		NgramLanguageDetector detector = NgramLanguageDetectorForTests.get();
+		List<LanguageBoundaryDetector> boundaryDetectors = List.of(
+				new SlidingWindowBigramBoundaryDetector(ClassificationAlgorithm.LINEAR_WEIGHTS, detector, 4),
+				new NestedSlidingWindowBigramBoundaryDetector(ClassificationAlgorithm.LINEAR_WEIGHTS, detector, 5));
+
+		for (LanguageBoundaryDetector boundaryDetector : boundaryDetectors) {
+			String context = boundaryDetector.getClass().getSimpleName();
+			assertEquals(List.of(
+					new Pair<>("We visited the old market in", Locale.ENGLISH),
+					new Pair<>("Москва", LanguageDetector.UNDETERMINED),
+					new Pair<>("last summer with all of our friends.", Locale.ENGLISH)),
+					boundaryDetector.tagStringWithLanguages(
+							"We visited the old market in Москва last summer with all of our friends."),
+					"One word for " + context);
+			assertEquals(List.of(
+					new Pair<>("Yesterday I had dinner with", Locale.ENGLISH),
+					new Pair<>("Иван Петров", LanguageDetector.UNDETERMINED),
+					new Pair<>("at a small restaurant near the old market.", Locale.ENGLISH)),
+					boundaryDetector.tagStringWithLanguages(
+							"Yesterday I had dinner with Иван Петров at a small restaurant near the old market."),
+					"Two words for " + context);
+		}
+	}
+
+	// where the script changes, digits and punctuation stay with the text before
+	// them, and at the start with the text after them, as appendSegment keeps them
+	@Test
+	void testNeutralRunAtScriptChange() throws Exception {
+
+		LanguageBoundaryDetector boundaryDetector = newBoundaryDetector();
+
+		assertEquals(List.of(
+				new Pair<>("This is English text 2020 —", Locale.ENGLISH),
+				new Pair<>("Это русский текст здесь", LanguageDetector.UNDETERMINED)),
+				boundaryDetector.tagStringWithLanguages("This is English text 2020 — Это русский текст здесь"),
+				"English, then Russian");
+		assertEquals(List.of(
+				new Pair<>("1 2 Это русский текст 3.", LanguageDetector.UNDETERMINED),
+				new Pair<>("This is English text for testing", Locale.ENGLISH)),
+				boundaryDetector.tagStringWithLanguages("1 2 Это русский текст 3. This is English text for testing"),
+				"Russian, then English");
+	}
+
+	// only words with no Latin letter are split off: a word mixing scripts stays
+	// with the Latin text, and letters of no particular script, like the micro
+	// sign, don't count
+	@Test
+	void testWordsWithoutOtherScriptStayInLatinText() throws Exception {
+
+		LanguageBoundaryDetector boundaryDetector = new NestedSlidingWindowBigramBoundaryDetector(
+				ClassificationAlgorithm.LINEAR_WEIGHTS, NgramLanguageDetectorForTests.get(), 5);
+
+		for (String text : List.of("We had dinner at Иван's place near the old market last summer.",
+				"The sample measured 5 µ across under the old microscope today.")) {
+			assertEquals(List.of(new Pair<>(text, Locale.ENGLISH)), boundaryDetector.tagStringWithLanguages(text),
+					"Should be one English phrase");
+		}
+	}
+
 	private static List<Locale> languagesOf(List<Pair<String, Locale>> tags) {
 		return tags.stream().map(Pair::second).toList();
 	}

@@ -2,6 +2,7 @@ package language.model.multiling;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.lang.Character.UnicodeScript;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -120,7 +121,99 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 		return retVal;
 	}
 
-	public List<Pair<String, Locale>> tagStringWithLanguages(String s) throws IOException {
+	/**
+	 * Splits {@code s} into segments tagged with their languages. Text in a
+	 * script other than Latin, the script of all supported languages, is split
+	 * off first, at the word where the script changes, and becomes an
+	 * {@link LanguageDetector#UNDETERMINED} segment of its own: there is no
+	 * training data for it, so the detector can't place that boundary itself.
+	 * The Latin text around it goes to {@link #tagLatinText}. Words without
+	 * letters of a particular script (digits, punctuation) stay with the text
+	 * before them, or with the text after them at the start, as in
+	 * {@link #appendSegment(List, String)}.
+	 */
+	@Override
+	public final List<Pair<String, Locale>> tagStringWithLanguages(String s) throws IOException {
+		List<String> tokens = new ArrayList<>();
+		List<TokenScript> scripts = new ArrayList<>();
+		StringTokenizer st = new StringTokenizer(s);
+		while (st.hasMoreTokens()) {
+			String token = st.nextToken();
+			tokens.add(token);
+			scripts.add(scriptOf(token));
+		}
+		if (!scripts.contains(TokenScript.OTHER)) {
+			return tagLatinText(s);
+		}
+
+		List<Pair<String, Locale>> retVal = new ArrayList<>();
+		int runStart = 0;
+		TokenScript runScript = TokenScript.NONE;
+		for (int ind = 0; ind < tokens.size(); ind++) {
+			TokenScript script = scripts.get(ind);
+			if (script == TokenScript.NONE) {
+				continue;
+			}
+			if (runScript != TokenScript.NONE && script != runScript) {
+				appendRun(retVal, tokens.subList(runStart, ind), runScript);
+				runStart = ind;
+			}
+			runScript = script;
+		}
+		appendRun(retVal, tokens.subList(runStart, tokens.size()), runScript);
+		return retVal;
+	}
+
+	/** Adds the segments of a run of words in one script. */
+	private void appendRun(List<Pair<String, Locale>> segments, List<String> tokens, TokenScript script)
+			throws IOException {
+		String text = String.join(" ", tokens);
+		if (script == TokenScript.OTHER) {
+			appendSegment(segments, text, LanguageDetector.UNDETERMINED);
+			return;
+		}
+		for (Pair<String, Locale> segment : tagLatinText(text)) {
+			appendSegment(segments, segment.first(), segment.second());
+		}
+	}
+
+	/** Script of a word's letters, for splitting text where the script changes. */
+	private enum TokenScript {
+		/** Has a Latin letter, even next to letters of another script. */
+		LATIN,
+		/** Has letters, none of them Latin: Cyrillic, Greek, Han and so on. */
+		OTHER,
+		/** Has no letters of a particular script: digits, punctuation, symbols. */
+		NONE
+	}
+
+	private static TokenScript scriptOf(String token) {
+		TokenScript retVal = TokenScript.NONE;
+		int ind = 0;
+		while (ind < token.length()) {
+			int codePoint = token.codePointAt(ind);
+			ind += Character.charCount(codePoint);
+			if (!Character.isLetter(codePoint)) {
+				continue;
+			}
+			UnicodeScript script = UnicodeScript.of(codePoint);
+			if (script == UnicodeScript.LATIN) {
+				return TokenScript.LATIN;
+			}
+			// common and inherited letters, like the micro sign, belong to no script
+			if (script != UnicodeScript.COMMON && script != UnicodeScript.INHERITED) {
+				retVal = TokenScript.OTHER;
+			}
+		}
+		return retVal;
+	}
+
+	/**
+	 * Splits Latin text, digits and punctuation included, into segments tagged
+	 * with their languages. {@link #tagStringWithLanguages} calls it for each
+	 * run of Latin text.
+	 */
+	protected List<Pair<String, Locale>> tagLatinText(String s) throws IOException {
 
 		List<Pair<String, Locale>> retVal = new ArrayList<>();
 		StringTokenizer st = new StringTokenizer(s);
@@ -168,12 +261,13 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 
 	/**
 	 * Language of a sliding window, for deciding where language boundaries are.
-	 * Letters no supported language recognizes (another script) make the window
-	 * {@link LanguageDetector#UNDETERMINED}, so that text gets its own segment.
-	 * A window of only digits and punctuation carries no language evidence and
-	 * keeps the English default it always had, so boundary decisions for it are
-	 * unchanged; {@link #appendSegment} then merges any digits-only fragment
-	 * back into the text next to it.
+	 * Letters no supported language recognizes make the window
+	 * {@link LanguageDetector#UNDETERMINED}, so that text gets its own segment;
+	 * words in another script never get here, {@link #tagStringWithLanguages}
+	 * splits them off first. A window of only digits and punctuation carries no
+	 * language evidence and keeps the English default it always had, so
+	 * boundary decisions for it are unchanged; {@link #appendSegment} then
+	 * merges any digits-only fragment back into the text next to it.
 	 */
 	protected Locale getWindowLanguage(String window) throws IOException {
 		Locale detected = detector.getMostLikelyLanguage(window, algorithmToUse);
@@ -198,7 +292,12 @@ public class BigramBoundaryDetector extends BaseNWordBoundaryDetector {
 		if (rawSegments && isLanguageNeutral(text) && LanguageDetector.UNDETERMINED.equals(detected)) {
 			detected = Locale.ENGLISH;
 		}
-		Pair<String, Locale> segment = new Pair<>(text, detected);
+		return appendSegment(segments, text, detected);
+	}
+
+	/** {@link #appendSegment(List, String)} for text whose language is already known. */
+	private Pair<String, Locale> appendSegment(List<Pair<String, Locale>> segments, String text, Locale locale) {
+		Pair<String, Locale> segment = new Pair<>(text, locale);
 		if (!segments.isEmpty()) {
 			Pair<String, Locale> previous = segments.get(segments.size() - 1);
 			boolean previousNeutral = !rawSegments && isLanguageNeutral(previous.first());
