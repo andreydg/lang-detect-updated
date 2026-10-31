@@ -59,7 +59,7 @@ public class SlidingWindowBigramBoundaryDetector extends BigramBoundaryDetector 
 	}
 
 	@Override
-	public List<Pair<String, Locale>> tagStringWithLanguages(String s) throws IOException {
+	protected List<Pair<String, Locale>> tagLatinText(String s) throws IOException {
 		List<Pair<String, Locale>> retVal = new ArrayList<>();
 
 		StringTokenizer st = new StringTokenizer(s);
